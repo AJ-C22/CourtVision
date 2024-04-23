@@ -61,7 +61,7 @@ while 1:
     cv2.imshow('image', image)
 
     # Print frames per second
-    print((1/(time.time()-start)), " fps")
+    print(round(1/(time.time()-start)), " fps")
 
 # Release resources when finished
 video.release()

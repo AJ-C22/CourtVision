@@ -6,7 +6,7 @@ import requests
 
 
 # Set up the endpoint and access token for Roboflow
-API_URL = "https://detect.roboflow.com/basketball-cv?access_token=PYvHbfgH1mq0ErEakP6j"
+API_URL = "https://detect.roboflow.com/basketball-cv/3?api_key=PYvHbfgH1mq0ErEakP6j"
 
 def encode_image_to_base64(image):
     _, buffer = cv2.imencode('.jpg', image)

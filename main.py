@@ -1,53 +1,68 @@
-
 import cv2
 import base64
 import numpy as np
 import requests
+import time
 
 
-# Set up the endpoint and access token for Roboflow
-API_URL = "https://detect.roboflow.com/basketball-cv/3?api_key=PYvHbfgH1mq0ErEakP6j"
+ROBOFLOW_SIZE = 416
 
-def encode_image_to_base64(image):
-    _, buffer = cv2.imencode('.jpg', image)
-    return base64.b64encode(buffer).decode()
+# Construct the Roboflow Infer URL
+# (if running locally replace https://detect.roboflow.com/ with eg http://127.0.0.1:9001/)
+upload_url = "".join([
+    "https://detect.roboflow.com/",
+    "basketball-cv/3",
+    "?api_key=",
+    "PYvHbfgH1mq0ErEakP6j",
+    "&format=image",
+    "&stroke=5"
+])
 
-def infer(image):
-    encoded_image = encode_image_to_base64(image)
-    response = requests.post(API_URL, data=encoded_image, headers={
+# Get webcam interface via opencv-python
+video = cv2.VideoCapture(0)
+
+# Infer via the Roboflow Infer API and return the result
+def infer():
+    # Get the current image from the webcam
+    ret, img = video.read()
+
+    # Resize (while maintaining the aspect ratio) to improve speed and save bandwidth
+    height, width, channels = img.shape
+    scale = ROBOFLOW_SIZE / max(height, width)
+    img = cv2.resize(img, (round(scale * width), round(scale * height)))
+
+    # Encode image to base64 string
+    retval, buffer = cv2.imencode('.jpg', img)
+    img_str = base64.b64encode(buffer)
+
+    # Get prediction from Roboflow Infer API
+    resp = requests.post(upload_url, data=img_str, headers={
         "Content-Type": "application/x-www-form-urlencoded"
-    })
-    
-    if response.status_code == 200:
-        # Convert response image from JPEG to numpy array
-        image_array = np.frombuffer(response.content, dtype=np.uint8)
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        return image
-    else:
-        print("Failed to get valid response from Roboflow.")
-        return None
+    }, stream=True).raw
 
-def main():
-    video = cv2.VideoCapture(0)
+    # Parse result image
+    image = np.asarray(bytearray(resp.read()), dtype="uint8")
+    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
-    while True:
-        ret, frame = video.read()
-        if not ret:
-            print("Failed to grab frame from webcam.")
-            break
+    return image
 
-        processed_image = infer(frame)
-        if processed_image is not None:
-            cv2.imshow('Processed Image', processed_image)
-        else:
-            cv2.imshow('Original Image', frame)
+# Main loop; infers sequentially until you press "q"
+while 1:
+    # On "q" keypress, exit
+    if(cv2.waitKey(1) == ord('q')):
+        break
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    # Capture start time to calculate fps
+    start = time.time()
 
-    video.release()
-    cv2.destroyAllWindows()
+    # Synchronously get a prediction from the Roboflow Infer API
+    image = infer()
+    # And display the inference results
+    cv2.imshow('image', image)
 
-if __name__ == "__main__":
-    main()
+    # Print frames per second
+    print((1/(time.time()-start)), " fps")
 
+# Release resources when finished
+video.release()
+cv2.destroyAllWindows()

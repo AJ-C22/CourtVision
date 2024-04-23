@@ -1,25 +1,27 @@
 import cv2
 
 cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("Error: Could not open camera.")
+    exit()
+
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-cv2.namedWindow('MediaPipe Pose')
-cv2.setMouseCallback('MediaPipe Pose', mouse_callback)
+cv2.namedWindow("Webcam Input")
 
-
-# Initial Setup Loop
 while True:
-    success, image = cap.read()
-    if not success:
-        continue
+    ret, frame = cap.read()
 
-    image = cv2.flip(image, 1)
-
-
-    if key == 32:  # Spacebar pressed
+    if not ret:
+        print("Error: Can't receive frame (stream end?). Exiting ...")
         break
-    elif key == 27:  # ESC key to exit early
-        cap.release()
-        cv2.destroyAllWindows()
-        exit()
+
+    cv2.imshow("Webcam Input", frame)
+
+    if cv2.waitKey(1) == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()

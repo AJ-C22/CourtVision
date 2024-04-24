@@ -44,7 +44,8 @@ async def infer(requests):
     image = np.asarray(bytearray(resp.content), dtype="uint8")
     image = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
-    # Get all instances of rim
+    '''
+     # Get all instances of rim
     rim_objects = []
     detections = resp.json()
     for detection in detections["predictions"]:
@@ -56,7 +57,7 @@ async def infer(requests):
     for rim_object in rim_objects:
         x, y, w, h = rim_object["x"], rim_object["y"], rim_object["width"], rim_object["height"]
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
+    '''
     return image
 
 # Main loop; infers at FRAMERATE frames per second until you press "q"

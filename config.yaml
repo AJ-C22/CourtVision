@@ -1,0 +1,8 @@
+path: C:\Users\Ajai\Downloads\train
+train: images
+val: images
+
+names:
+  0: ball
+  1: person
+  2: rim

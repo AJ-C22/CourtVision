@@ -6,7 +6,7 @@ import numpy as np
 
 
 def main():
-    model = YOLO("best.pt")
+    model = YOLO("last.pt")
 
     box_annotator = sv.BoxAnnotator(
         thickness=2,
@@ -19,17 +19,10 @@ def main():
         frame = result.orig_img
         detections = sv.Detections.from_yolov8(result)
 
-        labels = [
-            f"{model.model.names[class_id]} {confidence:0.2f}"
-            for confidence, class_id, _ 
-            in detections
-        ]
-
 
         frame = box_annotator.annotate(
             scene=frame, 
             detections=detections,
-            labels=labels
         )
 
         cv2.imshow("yolov8", frame)

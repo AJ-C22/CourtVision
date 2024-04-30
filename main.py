@@ -17,11 +17,11 @@ def main():
     for result in model.track(source=0, show=True, stream=True, agnostic_nms=True):
         
         frame = result.orig_img
-        detections = sv.Detections.from_ultralytics(result)
+        detections = sv.Detections.from_yolov8(result)
 
         labels = [
-            f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}"
-            for bbox, confidence, class_id, tracker_id
+            f"{model.model.names[class_id]} {confidence:0.2f}"
+            for confidence, class_id, _ 
             in detections
         ]
 

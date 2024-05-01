@@ -17,14 +17,15 @@ def main():
     for result in model.track(source=0, show=True, stream=True, agnostic_nms=True):
         
         frame = result.orig_img
-        detections = sv.Detections.from_yolov8(result)
-
-
+        detections = sv.Detections.from_ultralytics(result)
+        
+        #detections = detections[detections.class_id == 2]
+        
         frame = box_annotator.annotate(
             scene=frame, 
-            detections=detections,
+            detections=[detections],
         )
-
+        
         cv2.imshow("yolov8", frame)
 
         if (cv2.waitKey(30) == 27):

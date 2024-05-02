@@ -44,7 +44,7 @@ def main():
                 x1, y1, x2, y2 = bounding_box
                 box_height = y2 - y1
                 offset = box_height  # Define how far above you want the box
-                new_box = [x1, y1 - offset - box_height, x2, y1 - offset]
+                new_box = [x1, y1 - box_height, x2, y1]
                 print(new_box)
                 print("box")
                 # Draw the new box in orange

@@ -48,7 +48,7 @@ def main():
                 
                 print("box")
                 # Draw the new box in orange
-                cv2.rectangle(frame, (new_box[0], new_box[1]), (new_box[2], new_box[3]), (0, 165, 255), 2)
+                cv2.rectangle(results, (new_box[0], new_box[1]), (new_box[2], new_box[3]), (0, 165, 255), 2)
 
 
 

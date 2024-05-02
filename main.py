@@ -45,10 +45,10 @@ def main():
                 box_height = y2 - y1
                 offset = box_height  # Define how far above you want the box
                 new_box = [x1, y1 - offset - box_height, x2, y1 - offset]
-                
+                print(new_box)
                 print("box")
                 # Draw the new box in orange
-                cv2.rectangle(results, (new_box[0], new_box[1]), (new_box[2], new_box[3]), (0, 165, 255), 2)
+                cv2.rectangle(frame, (int(new_box[0]), int(new_box[1])), (int(new_box[2]), int(new_box[3])), (0, 165, 255), 2)
 
 
 

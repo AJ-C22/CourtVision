@@ -7,7 +7,7 @@ import mediapipe as mp
 def main():
     model = YOLO("last.pt")
     mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(static_image_mode=False, model_complexity=2, enable_segmentation=False, min_detection_confidence=0.5)
+    pose = mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False, min_detection_confidence=0.5)
 
     box_annotator = sv.BoxAnnotator(
         thickness=2,
@@ -37,9 +37,19 @@ def main():
         new_detections = []
         for detection in detections:
             class_id = detection[3]  
-            bounding_box = detection[0] #array of points x, y, x, y
             if class_id == 2:
-                print("RIM")
+                bounding_box = detection[0]  # (x1, y1, x2, y2)
+                print("RIM detected")
+                
+                # Compute new box above the detected rim
+                x1, y1, x2, y2 = bounding_box
+                box_height = y2 - y1
+                offset = box_height # Define how far above you want the box
+                new_box = [x1, y1 - offset - box_height, x2, y1 - offset]
+                
+                # Append new detection for the box above the rim
+                new_detections.append((new_box, detection[1], detection[2], detection[3]))  # Reuse class_id, score
+
 
         frame = box_annotator.annotate(
             scene=frame, 

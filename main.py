@@ -34,21 +34,22 @@ def main():
 
         detections = sv.Detections.from_ultralytics(result)
         
-        new_detections = []
         for detection in detections:
             class_id = detection[3]  
-            if class_id == 2:
+            if class_id == 2: 
                 bounding_box = detection[0]  # (x1, y1, x2, y2)
                 print("RIM detected")
                 
                 # Compute new box above the detected rim
                 x1, y1, x2, y2 = bounding_box
                 box_height = y2 - y1
-                offset = box_height # Define how far above you want the box
+                offset = box_height  # Define how far above you want the box
                 new_box = [x1, y1 - offset - box_height, x2, y1 - offset]
                 
-                # Append new detection for the box above the rim
-                new_detections.append((new_box, detection[1], detection[2], detection[3]))  # Reuse class_id, score
+                print("box")
+                # Draw the new box in orange
+                cv2.rectangle(frame, (new_box[0], new_box[1]), (new_box[2], new_box[3]), (0, 165, 255), 2)
+
 
 
         frame = box_annotator.annotate(

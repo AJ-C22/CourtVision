@@ -34,11 +34,12 @@ def main():
 
         detections = sv.Detections.from_ultralytics(result)
         
+        new_detections = []
         for detection in detections:
             class_id = detection[3]  
             if class_id == 2:
                 print("RIM")
-        
+
         frame = box_annotator.annotate(
             scene=frame, 
             detections=detections,  # Pass detections directly without enclosing it in another list

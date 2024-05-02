@@ -37,6 +37,7 @@ def main():
         new_detections = []
         for detection in detections:
             class_id = detection[3]  
+            bounding_box = detection[0] #array of points x, y, x, y
             if class_id == 2:
                 print("RIM")
 

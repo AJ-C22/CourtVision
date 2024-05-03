@@ -38,7 +38,6 @@ def main():
             class_id = detection[3]  
             if class_id == 2: 
                 bounding_box = detection[0]  # (x1, y1, x2, y2)
-                print("RIM detected")
                 
                 # Compute new box above the detected rim
                 x1, y1, x2, y2 = bounding_box
@@ -46,7 +45,6 @@ def main():
                 offset = box_height  # Define how far above you want the box
                 new_box = [x1, y1 - box_height, x2, y1]
                 print(new_box)
-                print("box")
                 # Draw the new box in orange
                 cv2.rectangle(frame, (int(new_box[0]), int(new_box[1])), (int(new_box[2]), int(new_box[3])), (0, 165, 255), 2)
 

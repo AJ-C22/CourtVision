@@ -1,7 +1,6 @@
 import cv2
 from ultralytics import YOLO
 import supervision as sv
-import numpy as np
 import mediapipe as mp
 
 def box_intersection(box1, box2):
@@ -57,9 +56,10 @@ def main():
             if class_id == 0:  # Ball detected
                 ball_box = bounding_box
 
-        # Check if ball is in both rim_box and new_box
-        if rim_box and ball_box and box_intersection(ball_box, rim_box) and box_intersection(ball_box, new_box):
-            print("Bucket man")
+        # Check if both rim_box and ball_box have been detected
+        if rim_box is not None and ball_box is not None:
+            if box_intersection(ball_box, rim_box) and box_intersection(ball_box, new_box):
+                print("Bucket man")
 
         frame = box_annotator.annotate(scene=frame, detections=detections)
         cv2.imshow("yolov8", frame)

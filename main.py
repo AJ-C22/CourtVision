@@ -16,7 +16,7 @@ def box_intersection(box1, box2):
     return True
 
 def main():
-    model = YOLO("last.pt")
+    model = YOLO("best.pt")
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False, min_detection_confidence=0.5)
 

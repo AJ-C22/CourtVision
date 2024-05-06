@@ -10,4 +10,4 @@ if __name__ == '__main__':
     model.to('cuda')
 
     # Use the model for training
-    results = model.train(data="config.yaml", epochs=225, batch=8, cache=False, workers=1)
+    results = model.train(data="config.yaml", epochs=200, batch=8, cache=False, workers=1)

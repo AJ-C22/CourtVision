@@ -28,6 +28,7 @@ def main():
 
     ball_in_top = False
     ball_passed_through_top = False
+    score = 0  # Initialize the score
 
     for result in model.track(source=0, show=False, stream=True, agnostic_nms=True):
         frame = result.orig_img
@@ -68,9 +69,12 @@ def main():
                 ball_passed_through_top = True  # Ball was in top and has now left
             if ball_passed_through_top and box_intersection(ball_box, rim_box):
                 print("Bucket man")
-                # Reset state if needed, or break if you only need to detect once
+                score += 1  # Increment score when "Bucket man" condition is met
                 ball_in_top = False
                 ball_passed_through_top = False
+
+        # Draw the score on the frame
+        cv2.putText(frame, f"Score: {score}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
 
         frame = box_annotator.annotate(scene=frame, detections=detections)
         cv2.imshow("yolov8", frame)
@@ -83,4 +87,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -26,6 +26,9 @@ def main():
         text_scale=0.5
     )
 
+    ball_in_top = False
+    ball_passed_through_top = False
+
     for result in model.track(source=0, show=False, stream=True, agnostic_nms=True):
         frame = result.orig_img
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -41,6 +44,7 @@ def main():
         detections = sv.Detections.from_ultralytics(result)
         rim_box = None
         ball_box = None
+        new_box = None  # Declare outside the loop to maintain scope
 
         for detection in detections:
             class_id = detection[3]  # Class ID for detected object
@@ -58,8 +62,15 @@ def main():
 
         # Check if both rim_box and ball_box have been detected
         if rim_box is not None and ball_box is not None:
-            if box_intersection(ball_box, rim_box) and box_intersection(ball_box, new_box):
+            if new_box and box_intersection(ball_box, new_box):
+                ball_in_top = True  # Ball is currently in the top box
+            elif ball_in_top and not box_intersection(ball_box, new_box):
+                ball_passed_through_top = True  # Ball was in top and has now left
+            if ball_passed_through_top and box_intersection(ball_box, rim_box):
                 print("Bucket man")
+                # Reset state if needed, or break if you only need to detect once
+                ball_in_top = False
+                ball_passed_through_top = False
 
         frame = box_annotator.annotate(scene=frame, detections=detections)
         cv2.imshow("yolov8", frame)
@@ -72,3 +83,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

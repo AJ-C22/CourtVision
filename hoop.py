@@ -53,9 +53,16 @@ class Shot:
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
                         elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
                             rim_box = x1, y1, x2, y2
                             rim_position = (cx, cy)
+
+                            nx1 = int(cx - (x1 - cx)/2)
+                            nx2 = int(cx + (x1 - cx)/2)
+                            ny2 = int(cy - (y1 - cy)/2)
+
+                            #cv2.rectangle(self.frame, (nx1, cy), (nx2, ny2), (100, 200, 255), 2)
+                            net_box = nx1, cy, nx2, ny2
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:
@@ -91,6 +98,7 @@ class Shot:
         # Check if the center of the ball lies within the bounding box
         if x1 < center[0] < x2 and y1 < center[1] < y2:
             print("BUCKET")
+            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             return True
             
         else:

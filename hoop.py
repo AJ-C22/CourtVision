@@ -8,7 +8,8 @@ class Shot:
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        self.cap = cv2.VideoCapture(0)
+        #Change to 0 for built in webcam
+        self.cap = cv2.VideoCapture(1)
         self.dots = []  # List to store dot positions
         self.run()
     
@@ -60,6 +61,7 @@ class Shot:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:
                     self.dots.append({'position': ball_position, 'time': time.time()})
                 current_frame_dots = [dot['position'] for dot in self.dots]  # Update current frame dots
+            
             else:
                 self.dots = []  # Clear dots when ball goes below rim
 

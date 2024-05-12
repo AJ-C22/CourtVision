@@ -54,6 +54,7 @@ class Shot:
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                            rim_box = x1, y1, x2, y2
                             rim_position = (cx, cy)
 
             # Check if the ball is above the rim and manage the dots
@@ -69,6 +70,11 @@ class Shot:
             for dot_position in current_frame_dots:
                 cv2.circle(self.frame, dot_position, 5, (0, 255, 0), -1)
 
+            try: 
+                self.ball_in_box(ball_position, rim_box)
+            except:
+                print("No Rim")
+
             cv2.imshow('Frame', self.frame)
 
             # Close if 'q' is clicked
@@ -77,6 +83,18 @@ class Shot:
 
         self.cap.release()
         cv2.destroyAllWindows()
+
+    def ball_in_box(self, center, box):
+        # Unpack the bounding box coordinates
+        x1, y1, x2, y2 = box
+        
+        # Check if the center of the ball lies within the bounding box
+        if x1 < center[0] < x2 and y1 < center[1] < y2:
+            print("BUCKET")
+            return True
+            
+        else:
+            return False
 
 if __name__ == "__main__":
     Shot()

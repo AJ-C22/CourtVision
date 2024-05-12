@@ -14,6 +14,7 @@ class Shot:
         self.run()
     
     def run(self):
+        basket = False
         ball_position = None
         rim_position = None
         ball_above_rim = False
@@ -71,6 +72,7 @@ class Shot:
                 current_frame_dots = [dot['position'] for dot in self.dots]  # Update current frame dots
             
             else:
+                basket = False
                 self.dots = []  # Clear dots when ball goes below rim
 
             # Draw all current dots
@@ -78,7 +80,7 @@ class Shot:
                 cv2.circle(self.frame, dot_position, 5, (0, 255, 0), -1)
 
             try: 
-                self.ball_in_box(ball_position, rim_box)
+                self.ball_in_box(ball_position, rim_box, basket)
             except:
                 print("No Rim")
 
@@ -91,12 +93,12 @@ class Shot:
         self.cap.release()
         cv2.destroyAllWindows()
 
-    def ball_in_box(self, center, box):
+    def ball_in_box(self, center, box, status):
         # Unpack the bounding box coordinates
         x1, y1, x2, y2 = box
         
-        # Check if the center of the ball lies within the bounding box
-        if x1 < center[0] < x2 and y1 < center[1] < y2:
+        # Check if the center of the ball lies within the bounding box and was not just a basket before
+        if x1 < center[0] < x2 and y1 < center[1] < y2 and status == False:
             print("BUCKET")
             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             return True

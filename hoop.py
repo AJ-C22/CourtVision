@@ -2,15 +2,20 @@ import cv2
 from ultralytics import YOLO
 import math
 import time
+from collections import OrderedDict
+import numpy as np
+from scipy.spatial import distance as dist
+from centroid import CentroidTracker
 
 class Shot:
     
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        #Change to 0 for built in webcam
-        self.cap = cv2.VideoCapture(1)
+        # Change to 0 for built-in webcam
+        self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
+        self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.run()
     
     def run(self):
@@ -28,6 +33,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
+            centroids = []  # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -52,6 +58,7 @@ class Shot:
                         
                         elif current_class == "person":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            centroids.append((cx, cy))
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
@@ -62,8 +69,18 @@ class Shot:
                             nx2 = int(cx + (x1 - cx)/2)
                             ny2 = int(cy - (y1 - cy)/2)
 
-                            #cv2.rectangle(self.frame, (nx1, cy), (nx2, ny2), (100, 200, 255), 2)
+                            # cv2.rectangle(self.frame, (nx1, cy), (nx2, ny2), (100, 200, 255), 2)
                             net_box = nx1, cy, nx2, ny2
+
+            # Update CentroidTracker with detected centroids
+            tracked_centroids = self.ct.update(centroids)
+
+            # Loop over tracked centroids and draw them on the frame with IDs
+            for (object_id, centroid) in tracked_centroids.items():
+                # Draw centroid and ID on the frame
+                cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
+                cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:

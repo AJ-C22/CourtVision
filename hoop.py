@@ -2,24 +2,19 @@ import cv2
 from ultralytics import YOLO
 import math
 import time
-from collections import OrderedDict
-import numpy as np
-from scipy.spatial import distance as dist
-from centroid import CentroidTracker
 
 class Shot:
     
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        # Change to 0 for built-in webcam
         self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
-        self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
+        self.goal_count = 0
+        self.ball_in_top_box = False
         self.run()
     
     def run(self):
-        basket = False
         ball_position = None
         rim_position = None
         ball_above_rim = False
@@ -33,7 +28,6 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            centroids = []  # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -58,48 +52,42 @@ class Shot:
                         
                         elif current_class == "person":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                            centroids.append((cx, cy))
 
                         elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                            rim_box = x1, y1, x2, y2
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
-                            nx1 = int(cx - (x1 - cx)/2)
-                            nx2 = int(cx + (x1 - cx)/2)
-                            ny2 = int(cy - (y1 - cy)/2)
+            # Define the top and bottom boxes
+            top_box = (50, 50, 150, 150)  # Example coordinates for top box
+            bottom_box = (50, 300, 150, 400)  # Example coordinates for bottom box
 
-                            # cv2.rectangle(self.frame, (nx1, cy), (nx2, ny2), (100, 200, 255), 2)
-                            net_box = nx1, cy, nx2, ny2
+            # Draw the top and bottom boxes
+            cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
+            cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
 
-            # Update CentroidTracker with detected centroids
-            tracked_centroids = self.ct.update(centroids)
+            # Check if the ball is in the top box
+            if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
+                self.ball_in_top_box = True
 
-            # Loop over tracked centroids and draw them on the frame with IDs
-            for (object_id, centroid) in tracked_centroids.items():
-                # Draw centroid and ID on the frame
-                cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
-                cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            # Check if the ball is in the bottom box
+            if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
+                self.goal_count += 1
+                self.ball_in_top_box = False  # Reset for the next goal
+
+            # Draw the goal count on the screen
+            cv2.putText(self.frame, f"Goals: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:
                     self.dots.append({'position': ball_position, 'time': time.time()})
                 current_frame_dots = [dot['position'] for dot in self.dots]  # Update current frame dots
-            
             else:
-                basket = False
                 self.dots = []  # Clear dots when ball goes below rim
 
             # Draw all current dots
             for dot_position in current_frame_dots:
                 cv2.circle(self.frame, dot_position, 5, (0, 255, 0), -1)
-
-            try: 
-                self.ball_in_box(ball_position, rim_box, basket)
-            except:
-                print("No Rim")
 
             cv2.imshow('Frame', self.frame)
 
@@ -109,19 +97,6 @@ class Shot:
 
         self.cap.release()
         cv2.destroyAllWindows()
-
-    def ball_in_box(self, center, box, status):
-        # Unpack the bounding box coordinates
-        x1, y1, x2, y2 = box
-        
-        # Check if the center of the ball lies within the bounding box and was not just a basket before
-        if x1 < center[0] < x2 and y1 < center[1] < y2 and status == False:
-            print("BUCKET")
-            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            return True
-            
-        else:
-            return False
 
 if __name__ == "__main__":
     Shot()

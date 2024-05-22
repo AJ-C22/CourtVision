@@ -2,6 +2,7 @@ import cv2
 from ultralytics import YOLO
 import math
 import time
+from centroid import CentroidTracker
 
 class Shot:
     
@@ -10,6 +11,7 @@ class Shot:
         self.class_names = ['ball', 'person', 'rim']
         self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
+        self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0
         self.ball_in_top_box = False
         self.run()
@@ -28,6 +30,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
+            centroids = [] # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -52,6 +55,7 @@ class Shot:
                         
                         elif current_class == "person":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            centroids.append((cx, cy))
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
@@ -60,6 +64,16 @@ class Shot:
             # Define the top and bottom boxes
             top_box = (50, 50, 150, 150)  # Example coordinates for top box
             bottom_box = (50, 300, 150, 400)  # Example coordinates for bottom box
+
+            # Update CentroidTracker with detected centroids
+            tracked_centroids = self.ct.update(centroids)
+
+                        # Loop over tracked centroids and draw them on the frame with IDs
+            for (object_id, centroid) in tracked_centroids.items():
+            # Draw centroid and ID on the frame
+                cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
+                cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             # Draw the top and bottom boxes
             cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)

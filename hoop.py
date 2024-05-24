@@ -30,7 +30,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            centroids = [] # List to store centroids of detected people
+            centroids = []  # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -61,32 +61,36 @@ class Shot:
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
-            # Define the top and bottom boxes
-            top_box = (50, 50, 150, 150)  # Example coordinates for top box
-            bottom_box = (50, 300, 150, 400)  # Example coordinates for bottom box
-
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.ct.update(centroids)
 
-                        # Loop over tracked centroids and draw them on the frame with IDs
+            # Loop over tracked centroids and draw them on the frame with IDs
             for (object_id, centroid) in tracked_centroids.items():
-            # Draw centroid and ID on the frame
+                # Draw centroid and ID on the frame
                 cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
                 cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-            # Draw the top and bottom boxes
-            cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
-            cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
+            if rim_position:
+                # Define the top and bottom boxes relative to the rim position
+                rim_x, rim_y = rim_position
+                box_width, box_height = 100, 100  # Define the size of the boxes
 
-            # Check if the ball is in the top box
-            if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
-                self.ball_in_top_box = True
+                top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
+                bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
 
-            # Check if the ball is in the bottom box
-            if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
-                self.goal_count += 1
-                self.ball_in_top_box = False  # Reset for the next goal
+                # Draw the top and bottom boxes
+                cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
+                cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
+
+                # Check if the ball is in the top box
+                if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
+                    self.ball_in_top_box = True
+
+                # Check if the ball is in the bottom box
+                if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
+                    self.goal_count += 1
+                    self.ball_in_top_box = False  # Reset for the next goal
 
             # Draw the goal count on the screen
             cv2.putText(self.frame, f"Goals: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)

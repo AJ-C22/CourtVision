@@ -14,11 +14,13 @@ class Shot:
         self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0
         self.ball_in_top_box = False
+        self.timer_start = None
         self.run()
     
     def run(self):
         ball_position = None
         rim_position = None
+        countdown_time = 200  # 200 milliseconds
         ball_above_rim = False
 
         while True:
@@ -83,17 +85,34 @@ class Shot:
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
                 cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
 
-                # Check if the ball is in the top box
+                # Check if the ball's center is in the top box
                 if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
-                    self.ball_in_top_box = True
+                    if not self.ball_in_top_box:
+                        self.ball_in_top_box = True
+                        self.timer_start = time.time()
 
-                # Check if the ball is in the bottom box
+                # Check if the ball's center is in the bottom box within 200ms of entering the top box
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
-                    self.goal_count += 1
+                    elapsed_time = (time.time() - self.timer_start) * 1000  # convert to milliseconds
+                    if elapsed_time <= countdown_time:
+                        self.goal_count += 1
                     self.ball_in_top_box = False  # Reset for the next goal
+                    self.timer_start = None
+
+                # Reset if the timer runs out
+                if self.ball_in_top_box and self.timer_start and (time.time() - self.timer_start) * 1000 > countdown_time:
+                    self.ball_in_top_box = False
+                    self.timer_start = None
 
             # Draw the goal count on the screen
             cv2.putText(self.frame, f"Goals: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            # Draw the countdown timer on the screen
+            if self.ball_in_top_box and self.timer_start:
+                time_left = max(0, countdown_time - int((time.time() - self.timer_start) * 1000))
+                cv2.putText(self.frame, f"Timer: {time_left}ms", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            else:
+                cv2.putText(self.frame, "Timer: 200ms", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:

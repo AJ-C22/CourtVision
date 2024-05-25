@@ -74,7 +74,7 @@ class Shot:
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
-                box_width, box_height = 100, 100  # Define the size of the boxes
+                box_width, box_height = 60, 60  # Define the size of the boxes
 
                 top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
                 bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
@@ -93,7 +93,7 @@ class Shot:
                     self.ball_in_top_box = False  # Reset for the next goal
 
             # Draw the goal count on the screen
-            cv2.putText(self.frame, f"Goals: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(self.frame, f"Buckets: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:

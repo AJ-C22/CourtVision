@@ -77,7 +77,7 @@ class Shot:
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
-                box_width, box_height = 75, 75  # Define the size of the boxes
+                box_width, box_height = 50, 50  # Define the size of the boxes
 
                 top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
                 bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)

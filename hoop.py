@@ -113,7 +113,7 @@ class Shot:
             # Smoothing ball positions using Gaussian filter
             if ball_position:
                 self.ball_positions.append(ball_position)
-                if len(self.ball_positions) > 10:  # Keep last 10 positions
+                if len(self.ball_positions) > 10:  
                     self.ball_positions.pop(0)
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))

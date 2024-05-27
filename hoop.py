@@ -10,7 +10,7 @@ class Shot:
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        self.cap = cv2.VideoCapture(1)
+        self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
         #self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0

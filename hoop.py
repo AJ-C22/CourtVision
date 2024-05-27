@@ -18,11 +18,14 @@ class Shot:
         self.ball_positions = []  # List to store ball positions for smoothing
         self.team2_centroids = []  # List to store team 2 centroids
         self.team_colors = defaultdict(lambda: (255, 0, 0))  # Default color blue for team 1
+        self.num_orange_buckets = 0  # Score for orange team
+        self.num_blue_buckets = 0  # Score for blue team
         self.run()
     
     def run(self):
         ball_position = None
         rim_position = None
+        possession_color = None
 
         cv2.namedWindow('Frame')
         cv2.setMouseCallback('Frame', self.on_mouse_click)
@@ -103,15 +106,17 @@ class Shot:
 
                 # Check if the ball is in the bottom box
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
-                    self.goal_count += 1
+                    if possession_color == (0, 165, 255):  # Orange
+                        self.num_orange_buckets += 1
+                    elif possession_color == (255, 0, 0):  # Blue
+                        self.num_blue_buckets += 1
                     self.ball_in_top_box = False  # Reset for the next goal
 
-            # Draw the goal count on the screen
-            cv2.putText(self.frame, f"Buckets: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-            # Display the possession color on the top left corner
-            if possession_color is not None:
-                cv2.putText(self.frame, f"Possession: ", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, possession_color, 2)
+            # Display the scores for both teams
+            cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
+            cv2.putText(self.frame, f"{self.num_orange_buckets}", (150, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(self.frame, "| Blue: ", (200, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+            cv2.putText(self.frame, f"{self.num_blue_buckets}", (350, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:

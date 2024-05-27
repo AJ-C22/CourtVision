@@ -4,6 +4,7 @@ import math
 import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
+from centroid import CentroidTracker
 
 class Shot:
     
@@ -12,15 +13,19 @@ class Shot:
         self.class_names = ['ball', 'person', 'rim']
         self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
-        #self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
+        self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
+        self.team2_centroids = []  # List to store team 2 centroids
         self.run()
     
     def run(self):
         ball_position = None
         rim_position = None
+
+        cv2.namedWindow('Frame')
+        cv2.setMouseCallback('Frame', self.on_mouse_click)
 
         while True:
             ret, self.frame = self.cap.read()
@@ -31,7 +36,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            #centroids = []  # List to store centroids of detected people
+            centroids = []  # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -56,23 +61,26 @@ class Shot:
                         
                         elif current_class == "person":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                            #centroids.append((cx, cy))
+                            centroids.append((cx, cy))
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
-            '''
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.ct.update(centroids)
 
             # Loop over tracked centroids and draw them on the frame with IDs
             for (object_id, centroid) in tracked_centroids.items():
+                # Determine the color based on the team
+                color = (0, 255, 0)  # Default to green (team 1)
+                if centroid in self.team2_centroids:
+                    color = (0, 165, 255)  # Orange for team 2
+
                 # Draw centroid and ID on the frame
-                cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
+                cv2.circle(self.frame, centroid, 5, color, -1)
                 cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            '''
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
@@ -126,6 +134,18 @@ class Shot:
 
         self.cap.release()
         cv2.destroyAllWindows()
+
+    def on_mouse_click(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Check if the click is near any centroid
+            for (object_id, centroid) in self.ct.objects.items():
+                cx, cy = centroid
+                if abs(cx - x) < 10 and abs(cy - y) < 10:
+                    # Assign this centroid to team 2
+                    if centroid not in self.team2_centroids:
+                        self.team2_centroids.append(centroid)
+                    else:
+                        self.team2_centroids.remove(centroid)  # Allow toggling back to team 1
 
 if __name__ == "__main__":
     Shot()

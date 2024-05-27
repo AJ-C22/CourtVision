@@ -2,24 +2,25 @@ import cv2
 from ultralytics import YOLO
 import math
 import time
-from centroid import CentroidTracker
+import numpy as np
+from scipy.ndimage import gaussian_filter
 
 class Shot:
     
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(1)
         self.dots = []  # List to store dot positions
-        self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
+        #self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0
         self.ball_in_top_box = False
+        self.ball_positions = []  # List to store ball positions for smoothing
         self.run()
     
     def run(self):
         ball_position = None
         rim_position = None
-        ball_above_rim = False
 
         while True:
             ret, self.frame = self.cap.read()
@@ -30,7 +31,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            centroids = []  # List to store centroids of detected people
+            #centroids = []  # List to store centroids of detected people
 
             for r in results:
                 boxes = r.boxes
@@ -48,19 +49,20 @@ class Shot:
                     current_class = self.class_names[cls]
 
                     # Draw rectangle
-                    if conf > .4:
+                    if conf > 0.4:  # Adjust the confidence threshold
                         if current_class == "ball":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                            centroids.append((cx, cy))
+                            #centroids.append((cx, cy))
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
+            '''
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.ct.update(centroids)
 
@@ -70,11 +72,12 @@ class Shot:
                 cv2.circle(self.frame, centroid, 5, (0, 255, 0), -1)
                 cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            '''
 
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
-                box_width, box_height = 60, 60  # Define the size of the boxes
+                box_width, box_height = 50, 50  # Define the size of the boxes
 
                 top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
                 bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
@@ -106,6 +109,14 @@ class Shot:
             # Draw all current dots
             for dot_position in current_frame_dots:
                 cv2.circle(self.frame, dot_position, 5, (0, 255, 0), -1)
+
+            # Smoothing ball positions using Gaussian filter
+            if ball_position:
+                self.ball_positions.append(ball_position)
+                if len(self.ball_positions) > 10:  
+                    self.ball_positions.pop(0)
+                smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
+                ball_position = tuple(smoothed_positions[-1].astype(int))
 
             cv2.imshow('Frame', self.frame)
 

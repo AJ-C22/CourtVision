@@ -18,6 +18,7 @@ class Shot:
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
         self.team2_centroids = []  # List to store team 2 centroids
+        self.possession_id = None  # ID of the person who has possession of the ball
         self.run()
     
     def run(self):
@@ -70,6 +71,9 @@ class Shot:
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.ct.update(centroids)
 
+            # Determine possession of the ball
+            self.possession_id = self.get_possession_id(tracked_centroids, ball_position)
+
             # Loop over tracked centroids and draw them on the frame with IDs
             for (object_id, centroid) in tracked_centroids.items():
                 # Determine the color based on the team
@@ -105,6 +109,10 @@ class Shot:
 
             # Draw the goal count on the screen
             cv2.putText(self.frame, f"Buckets: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            # Display the possession ID on the top left corner
+            if self.possession_id is not None:
+                cv2.putText(self.frame, f"Possession: {self.possession_id}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:
@@ -146,6 +154,21 @@ class Shot:
                         self.team2_centroids.append(centroid)
                     else:
                         self.team2_centroids.remove(centroid)  # Allow toggling back to team 1
+
+    def get_possession_id(self, centroids, ball_position):
+        if ball_position is None:
+            return None
+        closest_id = None
+        closest_distance = float('inf')
+        for object_id, centroid in centroids.items():
+            distance = self.calculate_distance(centroid, ball_position)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_id = object_id
+        return closest_id
+
+    def calculate_distance(self, point1, point2):
+        return np.linalg.norm(np.array(point1) - np.array(point2))
 
 if __name__ == "__main__":
     Shot()

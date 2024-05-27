@@ -4,6 +4,7 @@ import math
 import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
+from centroid import CentroidTracker
 from collections import defaultdict
 
 class Shot:
@@ -11,13 +12,12 @@ class Shot:
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        self.cap = cv2.VideoCapture(1)
+        self.cap = cv2.VideoCapture(0)
         self.dots = []  # List to store dot positions
+        #self.ct = CentroidTracker(max_disappeared=100)  # Initialize CentroidTracker
         self.goal_count = 0
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
-        self.team2_centroids = []  # List to store team 2 centroids
-        self.team_colors = defaultdict(lambda: (255, 0, 0))  # Default color blue for team 1
         self.run()
     
     def run(self):
@@ -68,18 +68,10 @@ class Shot:
                             rim_position = (cx, cy)
 
             # Update CentroidTracker with detected centroids
-            tracked_centroids = self.update_centroids(centroids)
-
-            # Determine possession of the ball
-            possession_color = self.get_possession_color(tracked_centroids, ball_position)
+            tracked_centroids = self.ct.update(centroids)
 
             # Loop over tracked centroids and draw them on the frame with team colors
             for (object_id, centroid) in tracked_centroids.items():
-                # Determine the color based on the team
-                color = self.team_colors[object_id]
-                if centroid in self.team2_centroids:
-                    color = (0, 165, 255)  # Orange for team 2
-
                 # Draw centroid and ID on the frame
                 cv2.circle(self.frame, centroid, 5, color, -1)
                 cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
@@ -109,10 +101,6 @@ class Shot:
             # Draw the goal count on the screen
             cv2.putText(self.frame, f"Buckets: {self.goal_count}", (50, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-            # Display the possession color on the top left corner
-            if possession_color is not None:
-                cv2.putText(self.frame, f"Possession: ", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, possession_color, 2)
-
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:
@@ -141,43 +129,6 @@ class Shot:
 
         self.cap.release()
         cv2.destroyAllWindows()
-
-    def on_mouse_click(self, event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            # Check if the click is near any centroid
-            for object_id, centroid in self.centroids.items():
-                cx, cy = centroid
-                if abs(cx - x) < 10 and abs(cy - y) < 10:
-                    # Assign this centroid to team 2
-                    if centroid not in self.team2_centroids:
-                        self.team2_centroids.append(centroid)
-                        self.team_colors[object_id] = (0, 165, 255)  # Orange
-                    else:
-                        self.team2_centroids.remove(centroid)  # Allow toggling back to team 1
-                        self.team_colors[object_id] = (255, 0, 0)  # Blue
-
-    def update_centroids(self, centroids):
-        # This method updates centroids based on the given detections
-        updated_centroids = {}
-        for i, centroid in enumerate(centroids):
-            updated_centroids[i] = centroid
-        self.centroids = updated_centroids
-        return updated_centroids
-
-    def get_possession_color(self, centroids, ball_position):
-        if ball_position is None:
-            return None
-        closest_id = None
-        closest_distance = float('inf')
-        for object_id, centroid in centroids.items():
-            distance = self.calculate_distance(centroid, ball_position)
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_id = object_id
-        return self.team_colors[closest_id] if closest_id is not None else None
-
-    def calculate_distance(self, point1, point2):
-        return np.linalg.norm(np.array(point1) - np.array(point2))
 
 if __name__ == "__main__":
     Shot()

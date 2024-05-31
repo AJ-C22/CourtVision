@@ -71,7 +71,9 @@ class Shot:
                     # Draw rectangle
                     if conf > 0.4:  # Adjust the confidence threshold
                         if current_class == "ball":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
+                            # Draw circle instead of rectangle
+                            radius = max((x2 - x1) // 2, (y2 - y1) // 2)  # Radius based on the size of the bounding box
+                            cv2.circle(self.frame, (cx, cy), radius, (255, 165, 0), 2)
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":

@@ -5,6 +5,8 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
+import tkinter as tk
+import pyttsx3
 
 class Shot:
     
@@ -23,6 +25,10 @@ class Shot:
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.frame_skip = 2  # Process every nth frame
+        
+        # Initialize the text-to-speech engine
+        self.engine = pyttsx3.init()
+        
         self.run()
     
     def run(self):
@@ -72,9 +78,7 @@ class Shot:
                     # Draw rectangle
                     if conf > 0.4:  # Adjust the confidence threshold
                         if current_class == "ball":
-                            # Draw circle instead of rectangle
-                            radius = max((x2 - x1) // 2, (y2 - y1) // 2)  # Radius based on the size of the bounding box
-                            cv2.circle(self.frame, (cx, cy), radius, (255, 165, 0), 2)
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
@@ -125,9 +129,8 @@ class Shot:
                 rim_x, rim_y = rim_position
                 box_width, box_height = 50, 50  # Define the size of the boxes
 
-                # Adjust top box to be directly above the rim
-                top_box = (rim_x - box_width // 2, rim_y - box_height * 2 + box_height // 3, rim_x + box_width // 2, rim_y - box_height + box_height //3)
-                bottom_box = (rim_x - box_width // 2, rim_y - box_height // 2, rim_x + box_width // 2, rim_y + box_height // 2)
+                top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
+                bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
 
                 # Draw the top and bottom boxes
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
@@ -141,10 +144,13 @@ class Shot:
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == (0, 165, 255):  # Orange
                         self.num_orange_buckets += 1
+                        self.engine.say("Orange scored")
+                        self.engine.runAndWait()
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
+                        self.engine.say("Blue scored")
+                        self.engine.runAndWait()
                     self.ball_in_top_box = False  # Reset for the next goal
-
 
             # Display the scores for both teams
             cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
@@ -178,9 +184,9 @@ class Shot:
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
 
-            # Resize the frame to match the screen resolution
-            screen_res = (1920, 1080)  # Example screen resolution
-            self.frame = cv2.resize(self.frame, screen_res)
+            # Resize the frame to fit the screen
+            screen_width, screen_height = self.get_screen_resolution()
+            self.frame = cv2.resize(self.frame, (screen_width, screen_height))
 
             cv2.imshow('Frame', self.frame)
 
@@ -225,6 +231,13 @@ class Shot:
 
     def calculate_distance(self, point1, point2):
         return np.linalg.norm(np.array(point1) - np.array(point2))
+
+    def get_screen_resolution(self):
+        root = tk.Tk()
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        root.destroy()
+        return screen_width, screen_height
 
 if __name__ == "__main__":
     Shot()

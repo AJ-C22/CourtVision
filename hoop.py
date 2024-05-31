@@ -29,8 +29,7 @@ class Shot:
         ball_position = None
         rim_position = None
 
-        cv2.namedWindow('Frame', cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty('Frame', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.namedWindow('Frame')
         cv2.setMouseCallback('Frame', self.on_mouse_click)
 
         frame_count = 0
@@ -72,9 +71,7 @@ class Shot:
                     # Draw rectangle
                     if conf > 0.4:  # Adjust the confidence threshold
                         if current_class == "ball":
-                            # Draw circle instead of rectangle
-                            radius = max((x2 - x1) // 2, (y2 - y1) // 2)  # Radius based on the size of the bounding box
-                            cv2.circle(self.frame, (cx, cy), radius, (255, 165, 0), 2)
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
@@ -83,6 +80,7 @@ class Shot:
                             person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
             # Update CentroidTracker with detected centroids
@@ -125,9 +123,8 @@ class Shot:
                 rim_x, rim_y = rim_position
                 box_width, box_height = 50, 50  # Define the size of the boxes
 
-                # Adjust top box to be directly above the rim
-                top_box = (rim_x - box_width // 2, rim_y - box_height * 2 + box_height // 3, rim_x + box_width // 2, rim_y - box_height + box_height //3)
-                bottom_box = (rim_x - box_width // 2, rim_y - box_height // 2, rim_x + box_width // 2, rim_y + box_height // 2)
+                top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
+                bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
 
                 # Draw the top and bottom boxes
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
@@ -144,7 +141,6 @@ class Shot:
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
                     self.ball_in_top_box = False  # Reset for the next goal
-
 
             # Display the scores for both teams
             cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
@@ -177,10 +173,6 @@ class Shot:
                     self.ball_positions.pop(0)
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
-
-            # Resize the frame to match the screen resolution
-            screen_res = (1920, 1080)  # Example screen resolution
-            self.frame = cv2.resize(self.frame, screen_res)
 
             cv2.imshow('Frame', self.frame)
 

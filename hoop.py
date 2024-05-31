@@ -123,8 +123,9 @@ class Shot:
                 rim_x, rim_y = rim_position
                 box_width, box_height = 50, 50  # Define the size of the boxes
 
-                top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
-                bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
+                # Adjust top box to be directly above the rim
+                top_box = (rim_x - box_width // 2, rim_y - box_height * 2 + box_height // 3, rim_x + box_width // 2, rim_y - box_height + box_height //3)
+                bottom_box = (rim_x - box_width // 2, rim_y - box_height // 2, rim_x + box_width // 2, rim_y + box_height // 2)
 
                 # Draw the top and bottom boxes
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
@@ -141,6 +142,7 @@ class Shot:
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
                     self.ball_in_top_box = False  # Reset for the next goal
+
 
             # Display the scores for both teams
             cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)

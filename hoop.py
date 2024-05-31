@@ -29,7 +29,8 @@ class Shot:
         ball_position = None
         rim_position = None
 
-        cv2.namedWindow('Frame')
+        cv2.namedWindow('Frame', cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty('Frame', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.setMouseCallback('Frame', self.on_mouse_click)
 
         frame_count = 0
@@ -176,6 +177,10 @@ class Shot:
                     self.ball_positions.pop(0)
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
+
+            # Resize the frame to match the screen resolution
+            screen_res = (1920, 1080)  # Example screen resolution
+            self.frame = cv2.resize(self.frame, screen_res)
 
             cv2.imshow('Frame', self.frame)
 

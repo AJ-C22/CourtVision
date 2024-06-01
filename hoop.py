@@ -5,6 +5,8 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
+from deep_sort_realtime.deepsort_tracker import DeepSort
+from filterpy.kalman import KalmanFilter
 
 class Shot:
     
@@ -16,13 +18,19 @@ class Shot:
         self.goal_count = 0
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
-        self.team2_centroids = []  # List to store team 2 centroids
         self.team_colors = defaultdict(lambda: (255, 0, 0))  # Default color blue for team 1
         self.num_orange_buckets = 0  # Score for orange team
         self.num_blue_buckets = 0  # Score for blue team
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.frame_skip = 2  # Process every nth frame
+
+        # Initialize DeepSORT with a max age to keep tracks for longer
+        self.tracker = DeepSort(max_age=10, n_init=3, nms_max_overlap=1.0, max_cosine_distance=0.2)
+        
+        # Initialize KalmanFilter for each track
+        self.kalman_filters = {}
+
         self.run()
     
     def run(self):
@@ -50,9 +58,7 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            centroids = []  # List to store centroids of detected people
-            person_boxes = []  # List to store bounding boxes of detected persons
-            shooting_zone_colors = {}  # Dictionary to store the color of each shooting zone
+            detections = []  # List to hold detections for DeepSORT
 
             for r in results:
                 boxes = r.boxes
@@ -69,23 +75,67 @@ class Shot:
                     current_class = self.class_names[cls]
 
                     # Draw rectangle
-                    if conf > 0.4:  # Adjust the confidence threshold
-                        if current_class == "ball":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
-                            ball_position = (cx, cy)
-                        
-                        elif current_class == "person":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                            centroids.append((cx, cy))
-                            person_boxes.append((x1, y1, x2, y2))
+                    if current_class == "ball" and conf > 0.35:
+                        cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
+                        ball_position = (cx, cy)
+                    
+                    elif current_class == "person" and conf > 0.7:
+                        detections.append(((x1, y1, x2 - x1, y2 - y1), conf, cls))  # For DeepSORT
 
-                        elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                            rim_position = (cx, cy)
+                    elif current_class == "rim" and conf > 0.7:
+                        cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        rim_position = (cx, cy)
 
-            # Update CentroidTracker with detected centroids
-            tracked_centroids = self.update_centroids(centroids)
+            # Update DeepSORT tracker with detections
+            tracks = self.tracker.update_tracks(detections, frame=self.frame)
 
+            centroids = []  # List to store centroids of detected people
+            person_boxes = []  # List to store bounding boxes of detected persons
+            shooting_zone_colors = {}  # Dictionary to store the color of each shooting zone
+
+            for track in tracks:
+                if not track.is_confirmed():
+                    continue
+                track_id = track.track_id
+                bbox = track.to_tlbr()  # Changed to to_tlbr for better compatibility with KalmanFilter
+                x1, y1, x2, y2 = map(int, bbox)
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2  # Center of the box
+
+                # Draw the bounding box
+                cv2.rectangle(self.frame, (x1, y1), (x2, y2), self.team_colors[track_id], 2)
+                cv2.putText(self.frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.team_colors[track_id], 2)
+                
+                centroids.append((cx, cy))
+                person_boxes.append((x1, y1, x2, y2))
+
+                # Update Kalman filter for each track
+                if track_id not in self.kalman_filters:
+                    self.kalman_filters[track_id] = KalmanFilter(dim_x=4, dim_z=2)
+                    self.kalman_filters[track_id].x = np.array([cx, cy, 0, 0])  # Initial state estimate
+                    self.kalman_filters[track_id].F = np.array([[1, 0, 1, 0],
+                                                                 [0, 1, 0, 1],
+                                                                 [0, 0, 1, 0],
+                                                                 [0, 0, 0, 1]])  # State transition matrix
+                    self.kalman_filters[track_id].H = np.array([[1, 0, 0, 0],
+                                                                 [0, 1, 0, 0]])  # Measurement function
+                    self.kalman_filters[track_id].P *= 10  # Covariance matrix
+                    self.kalman_filters[track_id].R = np.diag([1.0, 1.0])  # Measurement noise
+                    self.kalman_filters[track_id].Q = np.diag([0.01, 0.01, 0.01, 0.01])  # Process noise
+
+                    # Predict and update for the initial state
+                    self.kalman_filters[track_id].predict()
+
+                # Predict the new position
+                predicted_state = self.kalman_filters[track_id].predict()
+                predicted_x, predicted_y = predicted_state[:2].astype(int)
+
+                # Draw the predicted position
+                cv2.circle(self.frame, (predicted_x, predicted_y), 5, (0, 255, 255), -1)
+
+
+            #self.update_centroids(centroids)
+
+            '''
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
             for idx, (x1, y1, x2, y2) in enumerate(person_boxes):
@@ -98,26 +148,14 @@ class Shot:
                 # Check if the ball is in the shooting zone
                 if ball_position and shooting_zone[0] < ball_position[0] < shooting_zone[2] and shooting_zone[1] < ball_position[1] < shooting_zone[3]:
                     shooting_zone_color = (0, 0, 255)  # Red
-                    self.current_shooting_team = self.team_colors[self.get_closest_centroid(tracked_centroids, ball_position)]
+                    self.current_shooting_team = self.team_colors[self.get_closest_centroid(centroids, ball_position)]
                     self.last_shooting_team = self.current_shooting_team
 
                 shooting_zone_colors[idx] = shooting_zone_color
 
                 # Draw the shooting zone for each player
                 cv2.rectangle(self.frame, (shooting_zone[0], shooting_zone[1]), (shooting_zone[2], shooting_zone[3]), shooting_zone_color, 2)
-
-            # Loop over tracked centroids and draw them on the frame with team colors
-            for (object_id, centroid) in tracked_centroids.items():
-                # Determine the color based on the team
-                color = self.team_colors[object_id]
-                if centroid in self.team2_centroids:
-                    color = (0, 165, 255)  # Orange for team 2
-
-                # Draw centroid and ID on the frame
-                cv2.circle(self.frame, centroid, 5, color, -1)
-                cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
+            '''
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
@@ -146,14 +184,15 @@ class Shot:
             cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
             cv2.putText(self.frame, f"{self.num_orange_buckets}", (150, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             cv2.putText(self.frame, "| Blue: ", (200, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-            cv2.putText(self.frame, f"{self.num_blue_buckets}", (350, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(self.frame, f"{self.num_blue_buckets}", (310, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
+            '''
             # Display the shooting team permanently
             if self.last_shooting_team == (0, 165, 255):  # Orange
                 cv2.putText(self.frame, "Shooting: Orange", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
             elif self.last_shooting_team == (255, 0, 0):  # Blue
                 cv2.putText(self.frame, "Shooting: Blue", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-
+            '''
             # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_y:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:

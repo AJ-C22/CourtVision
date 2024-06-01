@@ -6,7 +6,6 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
 from deep_sort_realtime.deepsort_tracker import DeepSort
-from filterpy.kalman import KalmanFilter
 
 class Shot:
     
@@ -26,11 +25,8 @@ class Shot:
         self.frame_skip = 2  # Process every nth frame
 
         # Initialize DeepSORT with a max age to keep tracks for longer
-        self.tracker = DeepSort(max_age=10, n_init=3, nms_max_overlap=1.0, max_cosine_distance=0.2)
+        self.tracker = DeepSort(max_age=50, n_init=3, nms_max_overlap=1.0, max_cosine_distance=0.2)
         
-        # Initialize KalmanFilter for each track
-        self.kalman_filters = {}
-
         self.run()
     
     def run(self):
@@ -97,7 +93,7 @@ class Shot:
                 if not track.is_confirmed():
                     continue
                 track_id = track.track_id
-                bbox = track.to_tlbr()  # Changed to to_tlbr for better compatibility with KalmanFilter
+                bbox = track.to_ltrb()
                 x1, y1, x2, y2 = map(int, bbox)
                 cx, cy = (x1 + x2) // 2, (y1 + y2) // 2  # Center of the box
 
@@ -107,31 +103,6 @@ class Shot:
                 
                 centroids.append((cx, cy))
                 person_boxes.append((x1, y1, x2, y2))
-
-                # Update Kalman filter for each track
-                if track_id not in self.kalman_filters:
-                    self.kalman_filters[track_id] = KalmanFilter(dim_x=4, dim_z=2)
-                    self.kalman_filters[track_id].x = np.array([cx, cy, 0, 0])  # Initial state estimate
-                    self.kalman_filters[track_id].F = np.array([[1, 0, 1, 0],
-                                                                 [0, 1, 0, 1],
-                                                                 [0, 0, 1, 0],
-                                                                 [0, 0, 0, 1]])  # State transition matrix
-                    self.kalman_filters[track_id].H = np.array([[1, 0, 0, 0],
-                                                                 [0, 1, 0, 0]])  # Measurement function
-                    self.kalman_filters[track_id].P *= 10  # Covariance matrix
-                    self.kalman_filters[track_id].R = np.diag([1.0, 1.0])  # Measurement noise
-                    self.kalman_filters[track_id].Q = np.diag([0.01, 0.01, 0.01, 0.01])  # Process noise
-
-                    # Predict and update for the initial state
-                    self.kalman_filters[track_id].predict()
-
-                # Predict the new position
-                predicted_state = self.kalman_filters[track_id].predict()
-                predicted_x, predicted_y = predicted_state[:2].astype(int)
-
-                # Draw the predicted position
-                cv2.circle(self.frame, (predicted_x, predicted_y), 5, (0, 255, 255), -1)
-
 
             #self.update_centroids(centroids)
 

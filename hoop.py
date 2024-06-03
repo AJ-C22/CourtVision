@@ -91,9 +91,9 @@ class Shot:
                     continue
                 
                 track_id = track.track_id
-                x1, y1, x2, y2 = track.to_ltwh()  # Get the bounding box
-                shooting_zone_height = y2 // 3
-                shooting_zone = (x1, y1, x1 + x2, y1 + shooting_zone_height)
+                x1, y1, w, h = track.to_ltwh()  # Get the bounding box
+                shooting_zone_height = h // 3
+                shooting_zone = (x1, y1, x1 + w, y1 + shooting_zone_height)
 
                 # Default color for the shooting zone
                 shooting_zone_color = (0, 255, 0)  # Green
@@ -111,8 +111,8 @@ class Shot:
 
                 # Draw the shooting zone and the bounding box for each player
                 cv2.rectangle(self.frame, (int(shooting_zone[0]), int(shooting_zone[1])), (int(shooting_zone[2]), int(shooting_zone[3])), shooting_zone_color, 2)
-                cv2.rectangle(self.frame, (int(x1), int(y1)), (int(x1 + x2), int(y1 + y2)), color, 2)
-                #cv2.putText(self.frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.rectangle(self.frame, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color, 2)
+                cv2.putText(self.frame, f"ID: {track_id}", (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
@@ -185,15 +185,15 @@ class Shot:
             for track in self.tracker.tracker.tracks:
                 if not track.is_confirmed():
                     continue
-                x1, y1, x2, y2 = track.to_ltwh()
-                cx, cy = x1 + x2 // 2, y1 + y2 // 2
+                x1, y1, w, h = track.to_ltwh()
+                cx, cy = x1 + w // 2, y1 + h // 2
                 if abs(cx - x) < 10 and abs(cy - y) < 10:
-                    # Assign this track ID to team 2
+                    # Assign this track ID to team 2 or toggle back to team 1
                     if track.track_id not in self.team2_ids:
                         self.team2_ids.add(track.track_id)
                         self.team_colors[track.track_id] = (0, 165, 255)  # Orange
                     else:
-                        self.team2_ids.remove(track.track_id)  # Allow toggling back to team 1
+                        self.team2_ids.remove(track.track_id)  # Toggle back to team 1
                         self.team_colors[track.track_id] = (255, 0, 0)  # Blue
 
 if __name__ == "__main__":

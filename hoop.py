@@ -5,7 +5,6 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
-from deep_sort_realtime.deepsort_tracker import DeepSort
 
 class Shot:
     
@@ -17,14 +16,14 @@ class Shot:
         self.goal_count = 0
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
-        self.team2_ids = set()  # Set to store team 2 IDs
+        self.team2_centroids = []  # List to store team 2 centroids
         self.team_colors = defaultdict(lambda: (255, 0, 0))  # Default color blue for team 1
         self.num_orange_buckets = 0  # Score for orange team
         self.num_blue_buckets = 0  # Score for blue team
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.frame_skip = 2  # Process every nth frame
-        self.tracker = DeepSort(max_age=30)  # Initialize DeepSORT
+        self.centroids = {}  # To store the previous centroids for tracking
         self.run()
     
     def run(self):
@@ -52,7 +51,9 @@ class Shot:
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
-            detections = []
+            centroids = []  # List to store centroids of detected people
+            person_boxes = []  # List to store bounding boxes of detected persons
+            shooting_zone_colors = {}  # Dictionary to store the color of each shooting zone
 
             for r in results:
                 boxes = r.boxes
@@ -75,25 +76,22 @@ class Shot:
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
-                            detections.append(([x1, y1, x2-x1, y2-y1], conf, 2))  # Add detection in [x, y, w, h] format
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            centroids.append((cx, cy, x2 - x1))  # Append width of the bounding box
+                            person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
-            # Update DeepSORT with detections
-            tracks = self.tracker.update_tracks(detections, frame=self.frame)
+            # Update CentroidTracker with detected centroids
+            tracked_centroids = self.update_centroids(centroids)
 
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
-            for track in tracks:
-                if not track.is_confirmed():
-                    continue
-                
-                track_id = track.track_id
-                x1, y1, w, h = track.to_ltwh()  # Get the bounding box
-                shooting_zone_height = h // 3
-                shooting_zone = (x1, y1, x1 + w, y1 + shooting_zone_height)
+            for idx, (x1, y1, x2, y2) in enumerate(person_boxes):
+                shooting_zone_height = (y2 - y1) // 3
+                shooting_zone = (x1, y1, x2, y1 + shooting_zone_height)
 
                 # Default color for the shooting zone
                 shooting_zone_color = (0, 255, 0)  # Green
@@ -101,18 +99,25 @@ class Shot:
                 # Check if the ball is in the shooting zone
                 if ball_position and shooting_zone[0] < ball_position[0] < shooting_zone[2] and shooting_zone[1] < ball_position[1] < shooting_zone[3]:
                     shooting_zone_color = (0, 0, 255)  # Red
-                    self.current_shooting_team = self.team_colors[track_id]
+                    self.current_shooting_team = self.team_colors[self.get_closest_centroid(tracked_centroids, ball_position)]
                     self.last_shooting_team = self.current_shooting_team
 
-                # Assign team colors
-                color = self.team_colors[track_id]
-                if track_id in self.team2_ids:
+                shooting_zone_colors[idx] = shooting_zone_color
+
+                # Draw the shooting zone for each player
+                cv2.rectangle(self.frame, (shooting_zone[0], shooting_zone[1]), (shooting_zone[2], shooting_zone[3]), shooting_zone_color, 2)
+
+            # Loop over tracked centroids and draw them on the frame with team colors
+            for (object_id, centroid) in tracked_centroids.items():
+                # Determine the color based on the team
+                color = self.team_colors[object_id]
+                if centroid in self.team2_centroids:
                     color = (0, 165, 255)  # Orange for team 2
 
-                # Draw the shooting zone and the bounding box for each player
-                cv2.rectangle(self.frame, (int(shooting_zone[0]), int(shooting_zone[1])), (int(shooting_zone[2]), int(shooting_zone[3])), shooting_zone_color, 2)
-                cv2.rectangle(self.frame, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color, 2)
-                cv2.putText(self.frame, f"ID: {track_id}", (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                # Draw centroid and ID on the frame
+                cv2.circle(self.frame, centroid, 5, color, -1)
+                cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
@@ -181,20 +186,55 @@ class Shot:
 
     def on_mouse_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            # Check if the click is near any tracked object
-            for track in self.tracker.tracker.tracks:
-                if not track.is_confirmed():
-                    continue
-                x1, y1, w, h = track.to_ltwh()
-                cx, cy = x1 + w // 2, y1 + h // 2
+            # Check if the click is near any centroid
+            for object_id, centroid in self.centroids.items():
+                cx, cy = centroid
                 if abs(cx - x) < 10 and abs(cy - y) < 10:
-                    # Assign this track ID to team 2 or toggle back to team 1
-                    if track.track_id not in self.team2_ids:
-                        self.team2_ids.add(track.track_id)
-                        self.team_colors[track.track_id] = (0, 165, 255)  # Orange
+                    # Assign this centroid to team 2
+                    if centroid not in self.team2_centroids:
+                        self.team2_centroids.append(centroid)
+                        self.team_colors[object_id] = (0, 165, 255)  # Orange
                     else:
-                        self.team2_ids.remove(track.track_id)  # Toggle back to team 1
-                        self.team_colors[track.track_id] = (255, 0, 0)  # Blue
+                        self.team2_centroids.remove(centroid)  # Allow toggling back to team 1
+                        self.team_colors[object_id] = (255, 0, 0)  # Blue
+
+    def update_centroids(self, centroids):
+        updated_centroids = {}
+        max_movement = 0.5  # Maximum movement as a fraction of the bounding box width
+
+        for i, (cx, cy, box_width) in enumerate(centroids):
+            if i in self.centroids:
+                prev_cx, prev_cy, prev_box_width = self.centroids[i]
+
+                # Calculate maximum allowed movement
+                max_dist = max_movement * prev_box_width
+
+                # Calculate the actual distance moved
+                dist = self.calculate_distance((cx, cy), (prev_cx, prev_cy))
+
+                # Only update the centroid if the movement is within the allowed limit
+                if dist <= max_dist:
+                    updated_centroids[i] = (cx, cy, box_width)
+                else:
+                    updated_centroids[i] = (prev_cx, prev_cy, prev_box_width)
+            else:
+                updated_centroids[i] = (cx, cy, box_width)
+
+        self.centroids = updated_centroids
+        return {i: (cx, cy) for i, (cx, cy, _) in updated_centroids.items()}
+
+    def get_closest_centroid(self, centroids, ball_position):
+        closest_id = None
+        closest_distance = float('inf')
+        for object_id, centroid in centroids.items():
+            distance = self.calculate_distance(centroid, ball_position)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_id = object_id
+        return closest_id
+
+    def calculate_distance(self, point1, point2):
+        return np.linalg.norm(np.array(point1) - np.array(point2))
 
 if __name__ == "__main__":
     Shot()

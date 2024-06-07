@@ -5,6 +5,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ## 📋 Requirements
 
 - Python 3.x
+- PyTorch 2.3.1-CUDA:12.1
+- Ultralytics
 - OpenCV
 - YOLOv5
 - DeepSORT

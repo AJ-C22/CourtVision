@@ -4,7 +4,7 @@ import numpy as np
 
 # Initialize MediaPipe Pose.
 mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(static_image_mode=False, model_complexity=1, min_detection_confidence=0.5, min_tracking_confidence=0.5)
+pose = mp_pose.Pose()
 
 # Initialize MediaPipe drawing utilities.
 mp_drawing = mp.solutions.drawing_utils
@@ -35,45 +35,46 @@ while cap.isOpened():
     result = pose.process(frame_rgb)
 
     if result.pose_landmarks:
-        for idx, landmarks in enumerate(result.pose_landmarks):
-            # Draw the pose landmarks on the frame.
-            mp_drawing.draw_landmarks(frame, landmarks, mp_pose.POSE_CONNECTIONS)
-            
-            # Extract shoulder keypoints.
-            left_shoulder = landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
-            right_shoulder = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        # Draw the pose landmarks on the frame.
+        mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        
+        # Extract shoulder keypoints.
+        left_shoulder = result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        right_shoulder = result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
-            # Get average colors for the shirt.
-            avg_color_left_shoulder = get_average_color(frame, left_shoulder)
-            avg_color_right_shoulder = get_average_color(frame, right_shoulder)
+        # Get average colors for the shirt.
+        avg_color_left_shoulder = get_average_color(frame, left_shoulder)
+        avg_color_right_shoulder = get_average_color(frame, right_shoulder)
 
-            # Calculate the overall average color from shoulders.
-            avg_color_shirt = np.mean([avg_color_left_shoulder, avg_color_right_shoulder], axis=0)
+        # Calculate the overall average color from shoulders.
+        avg_color_shirt = np.mean([avg_color_left_shoulder, avg_color_right_shoulder], axis=0)
 
-            # Convert the average color to integer RGB values.
-            avg_color_shirt_int = avg_color_shirt.astype(int)
-            avg_color_shirt_text = f'Shirt: ({avg_color_shirt_int[0]}, {avg_color_shirt_int[1]}, {avg_color_shirt_int[2]})'
+        # Convert the average color to integer RGB values.
+        avg_color_shirt_int = avg_color_shirt.astype(int)
+        avg_color_shirt_text = f'Shirt: ({avg_color_shirt_int[0]}, {avg_color_shirt_int[1]}, {avg_color_shirt_int[2]})'
 
-            # Extract knee keypoints.
-            left_knee = landmarks.landmark[mp_pose.PoseLandmark.LEFT_KNEE]
-            right_knee = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_KNEE]
+        # Extract knee keypoints.
+        left_knee = result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_KNEE]
+        right_knee = result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_KNEE]
 
-            # Get average colors for the pants.
-            avg_color_left_knee = get_average_color(frame, left_knee)
-            avg_color_right_knee = get_average_color(frame, right_knee)
+        # Get average colors for the pants.
+        avg_color_left_knee = get_average_color(frame, left_knee)
+        avg_color_right_knee = get_average_color(frame, right_knee)
 
-            # Calculate the overall average color from knees.
-            avg_color_pants = np.mean([avg_color_left_knee, avg_color_right_knee], axis=0)
+        # Calculate the overall average color from knees.
+        avg_color_pants = np.mean([avg_color_left_knee, avg_color_right_knee], axis=0)
 
-            # Convert the average color to integer RGB values.
-            avg_color_pants_int = avg_color_pants.astype(int)
-            avg_color_pants_text = f'Pants: ({avg_color_pants_int[0]}, {avg_color_pants_int[1]}, {avg_color_pants_int[2]})'
+        # Convert the average color to integer RGB values.
+        avg_color_pants_int = avg_color_pants.astype(int)
+        avg_color_pants_text = f'Pants: ({avg_color_pants_int[0]}, {avg_color_pants_int[1]}, {avg_color_pants_int[2]})'
 
-            # Display the estimated shirt and pants RGB values in red.
-            red_color = (0, 0, 255)  # BGR format for red color in OpenCV
-            text_position = (10, 50 + idx * 30)
-            cv2.putText(frame, f'Person {idx}: {avg_color_pants_text}, {avg_color_shirt_text}', 
-                        text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.4, red_color, 1, cv2.LINE_AA)
+        # Format the text with smaller font size and follow the given form.
+        font_scale = 0.5  # Smaller font size
+        text = f'Person 1: pants: ({avg_color_pants_int[0]}, {avg_color_pants_int[1]}, {avg_color_pants_int[2]}), shirt: ({avg_color_shirt_int[0]}, {avg_color_shirt_int[1]}, {avg_color_shirt_int[2]})'
+
+        # Display the text.
+        red_color = (0, 0, 255)  # BGR format for red color in OpenCV
+        cv2.putText(frame, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, font_scale, red_color, 1, cv2.LINE_AA)
 
     # Display the frame.
     cv2.imshow('MediaPipe Pose Estimation', frame)

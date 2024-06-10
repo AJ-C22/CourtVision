@@ -5,6 +5,7 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
+import pyttsx3
 
 class Shot:
     
@@ -24,6 +25,7 @@ class Shot:
         self.last_shooting_team = None  # Last known shooting team
         self.frame_skip = 2  # Process every nth frame
         self.centroids = {}  # To store the previous centroids for tracking
+        self.engine = pyttsx3.init()  # Initialize TTS engine
         self.run()
     
     def run(self):
@@ -139,8 +141,10 @@ class Shot:
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == (0, 165, 255):  # Orange
                         self.num_orange_buckets += 1
+                        self.announce_score("Orange")
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
+                        self.announce_score("Blue")
                     self.ball_in_top_box = False  # Reset for the next goal
 
             # Display the scores for both teams
@@ -183,6 +187,10 @@ class Shot:
 
         self.cap.release()
         cv2.destroyAllWindows()
+
+    def announce_score(self, team):
+        self.engine.say(f"{team} scored")
+        self.engine.runAndWait()
 
     def on_mouse_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:

@@ -5,7 +5,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ## 📋 Requirements
 
 - Python 3.x
-- PyTorch 2.3.1-CUDA:12.1
+- PyTorch 2.3.1-CUDA:12.1 
 - Ultralytics
 - OpenCV
 - YOLOv5
@@ -67,12 +67,6 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 - The YOLO model is used for object detection with a custom-trained model `best.pt`.
 - Classes detected include `ball`, `person`, and `rim`.
 
-### DeepSORT Tracker
-
-- DeepSORT is used to track detected players.
-- Each player is assigned a unique ID.
-- Players can be interactively assigned to teams.
-
 ### Scoring Logic
 
 - The ball's position relative to the rim is used to determine scores.
@@ -80,8 +74,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 
 ### Dots for Ball Trajectory
 
-- The ball's trajectory above the rim is visualized using green dots.
 - Gaussian filtering smooths the ball's trajectory for better visualization.
+- The ball's trajectory above the rim is visualized using green dots.
 
 ## 🔧 Customization
 

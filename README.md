@@ -19,8 +19,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 1. **Clone the repository:**
 
     ```sh
-    git clone https://github.com/your-username/ai-basketball-score-counter.git
-    cd ai-basketball-score-counter
+    git clone https://github.com/AJ-C22/Basketball-ComputerVision.git
+    cd Basketball-ComputerVision
     ```
 
 2. **Install the dependencies:**

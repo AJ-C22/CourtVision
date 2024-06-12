@@ -31,14 +31,14 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 
 3. **Download the YOLO model:**
 
-    Ensure you have a trained YOLO model named `best.pt` in the project directory.
+    Ensure you have a trained YOLO model named `best.pt` or `last.pt` in the project directory.
 
 ## 🚀 Usage
 
 1. **Run the script:**
 
     ```sh
-    python shot.py
+    python hoop.py
     ```
 
 2. **Control Instructions:**
@@ -49,7 +49,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ## 🌟 Features
 
 - **Object Detection:** Utilizes YOLO for detecting the ball, players, and rim.
-- **Object Tracking:** Uses DeepSORT to track players and ball movements.
+- **Object Tracking:** Uses DeepSORT and Centroid Tracking to track players and ball movements.
 - **Scoring Mechanism:** 
   - Detects when the ball passes through the rim to count scores.
   - Maintains separate scores for two teams (Orange and Blue).

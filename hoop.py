@@ -79,7 +79,8 @@ class Shot:
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            color = self.team_colors.get(cx, (255, 0, 0))  # Use the color assigned to the centroid
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
                             centroids.append((cx, cy, x2 - x1))  # Append width of the bounding box
                             person_boxes.append((x1, y1, x2, y2))
 

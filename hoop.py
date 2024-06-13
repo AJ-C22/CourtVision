@@ -85,7 +85,6 @@ class Shot:
                             person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
             # Update CentroidTracker with detected centroids

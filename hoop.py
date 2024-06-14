@@ -125,13 +125,13 @@ class Shot:
             if rim_position:
                 # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
-                top_box_width, top_box_height = 25, 25  # Width and height of the top box
-                bottom_box_width, bottom_box_height = 50, 50  # Width and height of the bottom box
+                top_box_width, top_box_height = 30, 30  # Width and height of the top box
+                bottom_box_width, bottom_box_height = 55, 55  # Width and height of the bottom box
 
                 # Define the top box above the rim
-                top_box = (rim_x - top_box_width // 2, rim_y - top_box_height - 20, rim_x + top_box_width // 2, rim_y - 30)
+                top_box = (rim_x - top_box_width // 2, rim_y - top_box_height - 40, rim_x + top_box_width // 2, rim_y - 40)
                 # Define the bottom box below the top box
-                bottom_box = (rim_x - bottom_box_width // 2, rim_y -5 , rim_x + bottom_box_width // 2, rim_y + bottom_box_height -5)
+                bottom_box = (rim_x - bottom_box_width // 2, rim_y - 15 , rim_x + bottom_box_width // 2, rim_y + bottom_box_height - 15)
 
                 # Draw the top and bottom boxes
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)

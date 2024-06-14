@@ -88,7 +88,7 @@ class Shot:
                             rim_position = (cx, cy)
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 55), 2)
                             rim_width = int(x2 - x1)
-                            
+
                             # Define the top and bottom boxes relative to the rim position
                 
                             rim_x, rim_y = rim_position
@@ -153,7 +153,6 @@ class Shot:
 
             if rim_position:
                 
-
                 # Check if the ball is in the top box
                 if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
                     self.ball_in_top_box = True

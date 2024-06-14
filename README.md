@@ -5,6 +5,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ## 📋 Requirements
 
 - Python 3.x
+- PyTorch 2.3.1-CUDA:12.1 
+- Ultralytics
 - OpenCV
 - YOLOv5
 - DeepSORT
@@ -17,8 +19,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 1. **Clone the repository:**
 
     ```sh
-    git clone https://github.com/your-username/ai-basketball-score-counter.git
-    cd ai-basketball-score-counter
+    git clone https://github.com/AJ-C22/Basketball-ComputerVision.git
+    cd Basketball-ComputerVision
     ```
 
 2. **Install the dependencies:**
@@ -29,7 +31,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 
 3. **Download the YOLO model:**
 
-    Ensure you have a trained YOLO model named `best.pt` in the project directory.
+    Ensure you have a trained YOLO model named `best.pt` or `last.pt` in the project directory.
 
 ## 🚀 Usage
 
@@ -47,7 +49,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ## 🌟 Features
 
 - **Object Detection:** Utilizes YOLO for detecting the ball, players, and rim.
-- **Object Tracking:** Uses DeepSORT to track players and ball movements.
+- **Object Tracking:** Uses DeepSORT and Centroid Tracking to track players and ball movements.
 - **Scoring Mechanism:** 
   - Detects when the ball passes through the rim to count scores.
   - Maintains separate scores for two teams (Orange and Blue).
@@ -65,12 +67,6 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 - The YOLO model is used for object detection with a custom-trained model `best.pt`.
 - Classes detected include `ball`, `person`, and `rim`.
 
-### DeepSORT Tracker
-
-- DeepSORT is used to track detected players.
-- Each player is assigned a unique ID.
-- Players can be interactively assigned to teams.
-
 ### Scoring Logic
 
 - The ball's position relative to the rim is used to determine scores.
@@ -78,8 +74,8 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 
 ### Dots for Ball Trajectory
 
-- The ball's trajectory above the rim is visualized using green dots.
 - Gaussian filtering smooths the ball's trajectory for better visualization.
+- The ball's trajectory above the rim is visualized using green dots.
 
 ## 🔧 Customization
 

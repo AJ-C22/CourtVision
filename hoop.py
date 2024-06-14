@@ -129,7 +129,7 @@ class Shot:
                 bottom_box_width, bottom_box_height = 55, 55  # Width and height of the bottom box
 
                 # Define the top box above the rim
-                top_box = (rim_x - top_box_width // 2, rim_y - top_box_height - 40, rim_x + top_box_width // 2, rim_y - 40)
+                top_box = (rim_x - top_box_width // 2, rim_y - top_box_height - 20, rim_x + top_box_width // 2, rim_y - 20)
                 # Define the bottom box below the top box
                 bottom_box = (rim_x - bottom_box_width // 2, rim_y - 15 , rim_x + bottom_box_width // 2, rim_y + bottom_box_height - 15)
 

@@ -36,7 +36,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 1. **Run the script:**
 
     ```sh
-    python shot.py
+    python hoop.py
     ```
 
 2. **Control Instructions:**

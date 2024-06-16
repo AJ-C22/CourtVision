@@ -8,7 +8,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 - PyTorch 2.3.1-CUDA:12.1 
 - Ultralytics
 - OpenCV
-- YOLOv5
+- YOLOv10
 - DeepSORT
 - SciPy
 - NumPy
@@ -31,7 +31,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 
 3. **Download the YOLO model:**
 
-    Ensure you have a trained YOLO model named `best.pt` or `last.pt` in the project directory.
+    Ensure you have a trained YOLO model named `best.pt` in the project directory.
 
 ## 🚀 Usage
 

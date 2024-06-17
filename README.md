@@ -65,7 +65,7 @@ This project is an AI-enhanced basketball score counter using YOLO for object de
 ### YOLO Model
 
 - The YOLO model is used for object detection with a custom-trained model `best.pt`.
-- Classes detected include `ball`, `person`, and `rim`.
+- Classes detected include `ball`, `person`, `rim`, and `threepoint`.
 
 ### Scoring Logic
 

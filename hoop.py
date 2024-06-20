@@ -86,6 +86,35 @@ class Shot:
 
                         elif current_class == "rim":
                             rim_position = (cx, cy)
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 55), 2)
+                            rim_width = int(x2 - x1)
+
+                            # Define the top and bottom boxes relative to the rim position
+                
+                            rim_x, rim_y = rim_position
+                            top_box_width = rim_width * 0.5
+                            top_box_height = rim_width * 0.5
+                            bottom_box_width = rim_width * 0.8
+                            bottom_box_height = rim_width * 0.8
+
+                            top_box = (
+                                rim_x - top_box_width / 2,
+                                rim_y - rim_width / 2 - top_box_height,  # top of the rim to top of the top box
+                                rim_x + top_box_width / 2,
+                                rim_y - rim_width / 2  # top of the rim
+                            )
+
+                            # Calculate bottom box coordinates
+                            bottom_box = (
+                                x1,
+                                y1,
+                                x2,
+                                y2
+                            )
+
+                            # Draw the top and bottom boxes
+                            cv2.rectangle(self.frame, (int(top_box[0]), int(top_box[1])), (int(top_box[2]), int(top_box[3])), (0, 255, 255), 2)
+                            cv2.rectangle(self.frame, (int(bottom_box[0]), int(bottom_box[1])), (int(bottom_box[2]), int(bottom_box[3])), (255, 0, 255), 2)
 
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.update_centroids(centroids)
@@ -123,20 +152,7 @@ class Shot:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
-                # Define the top and bottom boxes relative to the rim position
-                rim_x, rim_y = rim_position
-                top_box_width, top_box_height = 30, 30  # Width and height of the top box
-                bottom_box_width, bottom_box_height = 55, 55  # Width and height of the bottom box
-
-                # Define the top box above the rim
-                top_box = (rim_x - top_box_width // 2, rim_y - top_box_height - 20, rim_x + top_box_width // 2, rim_y - 20)
-                # Define the bottom box below the top box
-                bottom_box = (rim_x - bottom_box_width // 2, rim_y - 15 , rim_x + bottom_box_width // 2, rim_y + bottom_box_height - 15)
-
-                # Draw the top and bottom boxes
-                cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
-                cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
-
+                
                 # Check if the ball is in the top box
                 if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
                     self.ball_in_top_box = True

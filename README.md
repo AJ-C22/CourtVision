@@ -1,4 +1,4 @@
-# 🏀 AI-Enhanced Basketball Score Counter
+# 🏀 CourtVision: An AI-Enhanced Basketball Score Counter
 
 CourtVision is an AI-enhanced basketball score counter using YOLO for object detection and DeepSORT for tracking. It detects the ball, players, and rim to automatically count the scores for two teams.
 
@@ -8,7 +8,7 @@ CourtVision is an AI-enhanced basketball score counter using YOLO for object det
 - PyTorch 2.3.1-CUDA:12.1 
 - Ultralytics
 - OpenCV
-- YOLOv5
+- YOLOv10
 - DeepSORT
 - SciPy
 - NumPy
@@ -31,7 +31,7 @@ CourtVision is an AI-enhanced basketball score counter using YOLO for object det
 
 3. **Download the YOLO model:**
 
-    Ensure you have a trained YOLO model named `best.pt` or `last.pt` in the project directory.
+    Ensure you have a trained YOLO model named `best.pt` in the project directory.
 
 ## 🚀 Usage
 
@@ -65,7 +65,7 @@ CourtVision is an AI-enhanced basketball score counter using YOLO for object det
 ### YOLO Model
 
 - The YOLO model is used for object detection with a custom-trained model `best.pt`.
-- Classes detected include `ball`, `person`, and `rim`.
+- Classes detected include `ball`, `person`, `rim`, and `threepoint`.
 
 ### Scoring Logic
 

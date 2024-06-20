@@ -1,4 +1,4 @@
-# 🏀 AI-Enhanced Basketball Score Counter
+# 🏀 CourtVision: An AI-Enhanced Basketball Score Counter
 
 This project is an AI-enhanced basketball score counter using YOLO for object detection and DeepSORT for tracking. It detects the ball, players, and rim to automatically count the scores for two teams.
 

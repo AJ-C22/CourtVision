@@ -5,6 +5,8 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
+import threading
+import pyttsx3
 
 class Shot:
     
@@ -23,6 +25,7 @@ class Shot:
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.frame_skip = 2  # Process every nth frame
+        self.engine = pyttsx3.init()
         self.run()
     
     def run(self):
@@ -138,10 +141,11 @@ class Shot:
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == (0, 165, 255):  # Orange
                         self.num_orange_buckets += 1
+                        threading.Thread(target=self.announce_score, args=("Orange",)).start()
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
+                        threading.Thread(target=self.announce_score, args=("Blue",)).start()
                     self.ball_in_top_box = False  # Reset for the next goal
-
 
             # Display the scores for both teams
             cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
@@ -218,6 +222,10 @@ class Shot:
 
     def calculate_distance(self, point1, point2):
         return np.linalg.norm(np.array(point1) - np.array(point2))
+
+    def announce_score(self, team_color):
+        self.engine.say(f"{team_color} scored a point")
+        self.engine.runAndWait()
 
 if __name__ == "__main__":
     Shot()

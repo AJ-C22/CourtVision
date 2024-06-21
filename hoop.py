@@ -5,8 +5,6 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
-import pyttsx3
-import threading
 
 class Shot:
     
@@ -24,9 +22,6 @@ class Shot:
         self.num_blue_buckets = 0  # Score for blue team
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
-        self.frame_skip = 2  # Process every nth frame
-        self.centroids = {}  # To store the previous centroids for tracking
-        self.engine = pyttsx3.init()  # Initialize TTS engine
         self.run()
     
     def run(self):
@@ -36,8 +31,6 @@ class Shot:
         cv2.namedWindow('Frame')
         cv2.setMouseCallback('Frame', self.on_mouse_click)
 
-        frame_count = 0
-
         while True:
             ret, self.frame = self.cap.read()
 
@@ -45,24 +38,19 @@ class Shot:
                 # End of the video or an error occurred
                 break
 
-            frame_count += 1
-
-            if frame_count % self.frame_skip != 0:
-                continue
-
             frame_height, frame_width, _ = self.frame.shape
 
             results = self.model(self.frame, stream=True)
             current_frame_dots = []  # Temporary list to hold dots for the current frame
             centroids = []  # List to store centroids of detected people
             person_boxes = []  # List to store bounding boxes of detected persons
-            shooting_zone_colors = {}  # Dictionary to store the color of each shooting zone
 
             for r in results:
                 boxes = r.boxes
                 for box in boxes:
                     # Bounding box
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    x1, y1, x2, y2 = box.xyxy[0]
+                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2  # Center of the box
 
                     # Confidence
@@ -79,65 +67,35 @@ class Shot:
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
-                            color = self.team_colors.get(cx, (255, 0, 0))  # Use the color assigned to the centroid
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
-                            centroids.append((cx, cy, x2 - x1))  # Append width of the bounding box
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            centroids.append((cx, cy))
                             person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 165, 55), 2)
-                            rim_width = int(x2 - x1)
-
-                            # Define the top and bottom boxes relative to the rim position
-                
-                            rim_x, rim_y = rim_position
-                            top_box_width = rim_width * 0.5
-                            top_box_height = rim_width * 0.5
-                            bottom_box_width = rim_width * 0.8
-                            bottom_box_height = rim_width * 0.8
-
-                            top_box = (
-                                rim_x - top_box_width / 2,
-                                rim_y - rim_width / 2 - top_box_height,  # top of the rim to top of the top box
-                                rim_x + top_box_width / 2,
-                                rim_y - rim_width / 2  # top of the rim
-                            )
-
-                            # Calculate bottom box coordinates
-                            bottom_box = (
-                                x1,
-                                y1,
-                                x2,
-                                y2
-                            )
-
-                            # Draw the top and bottom boxes
-                            cv2.rectangle(self.frame, (int(top_box[0]), int(top_box[1])), (int(top_box[2]), int(top_box[3])), (0, 255, 255), 2)
-                            cv2.rectangle(self.frame, (int(bottom_box[0]), int(bottom_box[1])), (int(bottom_box[2]), int(bottom_box[3])), (255, 0, 255), 2)
 
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.update_centroids(centroids)
 
+            
+            '''# Determine possession of the ball
+            possession_color = self.get_possession_color(tracked_centroids, ball_position)'''
+
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
-            for idx, (x1, y1, x2, y2) in enumerate(person_boxes):
+            for (x1, y1, x2, y2) in person_boxes:
                 shooting_zone_height = (y2 - y1) // 3
                 shooting_zone = (x1, y1, x2, y1 + shooting_zone_height)
 
-                # Default color for the shooting zone
-                shooting_zone_color = (0, 255, 0)  # Green
+                # Draw the shooting zone for each player
+                cv2.rectangle(self.frame, (shooting_zone[0], shooting_zone[1]), (shooting_zone[2], shooting_zone[3]), (0, 255, 0), 2)
 
                 # Check if the ball is in the shooting zone
                 if ball_position and shooting_zone[0] < ball_position[0] < shooting_zone[2] and shooting_zone[1] < ball_position[1] < shooting_zone[3]:
-                    shooting_zone_color = (0, 0, 255)  # Red
                     self.current_shooting_team = self.team_colors[self.get_closest_centroid(tracked_centroids, ball_position)]
                     self.last_shooting_team = self.current_shooting_team
-
-                shooting_zone_colors[idx] = shooting_zone_color
-
-                # Draw the shooting zone for each player
-                cv2.rectangle(self.frame, (shooting_zone[0], shooting_zone[1]), (shooting_zone[2], shooting_zone[3]), shooting_zone_color, 2)
+                    break
 
             # Loop over tracked centroids and draw them on the frame with team colors
             for (object_id, centroid) in tracked_centroids.items():
@@ -152,7 +110,17 @@ class Shot:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
-                
+                # Define the top and bottom boxes relative to the rim position
+                rim_x, rim_y = rim_position
+                box_width, box_height = 50, 50  # Define the size of the boxes
+
+                top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
+                bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
+
+                # Draw the top and bottom boxes
+                cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
+                cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
+
                 # Check if the ball is in the top box
                 if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
                     self.ball_in_top_box = True
@@ -161,10 +129,8 @@ class Shot:
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == (0, 165, 255):  # Orange
                         self.num_orange_buckets += 1
-                        threading.Thread(target=self.announce_score, args=("Orange",)).start()
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
-                        threading.Thread(target=self.announce_score, args=("Blue",)).start()
                     self.ball_in_top_box = False  # Reset for the next goal
 
             # Display the scores for both teams
@@ -180,7 +146,7 @@ class Shot:
                 cv2.putText(self.frame, "Shooting: Blue", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
             # Check if the ball is above the rim and manage the dots
-            if ball_position and rim_position and ball_position[1] < rim_y:
+            if ball_position and rim_position and ball_position[1] < rim_position[1]:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:
                     self.dots.append({'position': ball_position, 'time': time.time()})
                 current_frame_dots = [dot['position'] for dot in self.dots]  # Update current frame dots
@@ -208,10 +174,6 @@ class Shot:
         self.cap.release()
         cv2.destroyAllWindows()
 
-    def announce_score(self, team):
-        self.engine.say(f"{team} scored")
-        self.engine.runAndWait()
-
     def on_mouse_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             # Check if the click is near any centroid
@@ -227,29 +189,24 @@ class Shot:
                         self.team_colors[object_id] = (255, 0, 0)  # Blue
 
     def update_centroids(self, centroids):
+        # This method updates centroids based on the given detections
         updated_centroids = {}
-        max_movement = 0.5  # Maximum movement as a fraction of the bounding box width
-
-        for i, (cx, cy, box_width) in enumerate(centroids):
-            if i in self.centroids:
-                prev_cx, prev_cy, prev_box_width = self.centroids[i]
-
-                # Calculate maximum allowed movement
-                max_dist = max_movement * prev_box_width
-
-                # Calculate the actual distance moved
-                dist = self.calculate_distance((cx, cy), (prev_cx, prev_cy))
-
-                # Only update the centroid if the movement is within the allowed limit
-                if dist <= max_dist:
-                    updated_centroids[i] = (cx, cy, box_width)
-                else:
-                    updated_centroids[i] = (prev_cx, prev_cy, prev_box_width)
-            else:
-                updated_centroids[i] = (cx, cy, box_width)
-
+        for i, centroid in enumerate(centroids):
+            updated_centroids[i] = centroid
         self.centroids = updated_centroids
-        return {i: (cx, cy) for i, (cx, cy, _) in updated_centroids.items()}
+        return updated_centroids
+
+    '''def get_possession_color(self, centroids, ball_position):
+        if ball_position is None:
+            return None
+        closest_id = None
+        closest_distance = float('inf')
+        for object_id, centroid in centroids.items():
+            distance = self.calculate_distance(centroid, ball_position)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_id = object_id
+        return self.team_colors[closest_id] if closest_id is not None else None'''
 
     def get_closest_centroid(self, centroids, ball_position):
         closest_id = None

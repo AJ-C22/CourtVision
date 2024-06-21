@@ -25,6 +25,7 @@ class Shot:
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.engine = pyttsx3.init()
+        self.centroids = {}  # To store centroids of detected persons with their IDs
         self.run()
     
     def run(self):
@@ -70,7 +71,6 @@ class Shot:
                             ball_position = (cx, cy)
                         
                         elif current_class == "person":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
                             centroids.append((cx, cy))
                             person_boxes.append((x1, y1, x2, y2))
 
@@ -79,6 +79,12 @@ class Shot:
 
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.update_centroids(centroids)
+
+            # Draw person boxes with team colors
+            for idx, (x1, y1, x2, y2) in enumerate(person_boxes):
+                person_id = list(tracked_centroids.keys())[idx]
+                color = self.team_colors[person_id]
+                cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
 
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None

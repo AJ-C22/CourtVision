@@ -5,6 +5,8 @@ import time
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from collections import defaultdict
+import threading
+import pyttsx3
 
 class Shot:
     
@@ -22,6 +24,7 @@ class Shot:
         self.num_blue_buckets = 0  # Score for blue team
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
+        self.engine = pyttsx3.init()
         self.run()
     
     def run(self):
@@ -72,15 +75,10 @@ class Shot:
                             person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
             # Update CentroidTracker with detected centroids
             tracked_centroids = self.update_centroids(centroids)
-
-            
-            '''# Determine possession of the ball
-            possession_color = self.get_possession_color(tracked_centroids, ball_position)'''
 
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
@@ -129,8 +127,10 @@ class Shot:
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == (0, 165, 255):  # Orange
                         self.num_orange_buckets += 1
+                        threading.Thread(target=self.announce_score, args=("Orange",)).start()
                     elif self.last_shooting_team == (255, 0, 0):  # Blue
                         self.num_blue_buckets += 1
+                        threading.Thread(target=self.announce_score, args=("Blue",)).start()
                     self.ball_in_top_box = False  # Reset for the next goal
 
             # Display the scores for both teams
@@ -196,18 +196,6 @@ class Shot:
         self.centroids = updated_centroids
         return updated_centroids
 
-    '''def get_possession_color(self, centroids, ball_position):
-        if ball_position is None:
-            return None
-        closest_id = None
-        closest_distance = float('inf')
-        for object_id, centroid in centroids.items():
-            distance = self.calculate_distance(centroid, ball_position)
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_id = object_id
-        return self.team_colors[closest_id] if closest_id is not None else None'''
-
     def get_closest_centroid(self, centroids, ball_position):
         closest_id = None
         closest_distance = float('inf')
@@ -220,6 +208,10 @@ class Shot:
 
     def calculate_distance(self, point1, point2):
         return np.linalg.norm(np.array(point1) - np.array(point2))
+
+    def announce_score(self, team_color):
+        self.engine.say(f"{team_color} scored a point")
+        self.engine.runAndWait()
 
 if __name__ == "__main__":
     Shot()

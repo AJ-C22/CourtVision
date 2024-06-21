@@ -72,7 +72,6 @@ class Shot:
                             person_boxes.append((x1, y1, x2, y2))
 
                         elif current_class == "rim":
-                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             rim_position = (cx, cy)
 
             # Update CentroidTracker with detected centroids
@@ -195,18 +194,6 @@ class Shot:
             updated_centroids[i] = centroid
         self.centroids = updated_centroids
         return updated_centroids
-
-    '''def get_possession_color(self, centroids, ball_position):
-        if ball_position is None:
-            return None
-        closest_id = None
-        closest_distance = float('inf')
-        for object_id, centroid in centroids.items():
-            distance = self.calculate_distance(centroid, ball_position)
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_id = object_id
-        return self.team_colors[closest_id] if closest_id is not None else None'''
 
     def get_closest_centroid(self, centroids, ball_position):
         closest_id = None

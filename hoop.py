@@ -29,7 +29,9 @@ class Shot:
         self.engine = pyttsx3.init()
         self.centroids = {}  # To store centroids of detected persons with their IDs
         self.histograms = {}  # To store histograms of detected persons with their IDs
+        self.last_seen = {}  # To store the last seen time of each ID
         self.tracker = Sort(max_age=30, min_hits=3)  # Adjust max_age and min_hits for better tracking
+        self.removal_time_threshold = 4  # Time in seconds to remove unused IDs
         self.run()
     
     def run(self):
@@ -73,6 +75,8 @@ class Shot:
             else:
                 tracked_objects = []
 
+            current_time = time.time()
+
             # Extract the updated centroid positions and IDs
             person_boxes = []  # Initialize person_boxes list
             for obj in tracked_objects:
@@ -92,12 +96,16 @@ class Shot:
 
                     self.centroids[obj_id] = (cx, cy)
                     self.histograms[obj_id] = histogram
+                    self.last_seen[obj_id] = current_time  # Update last seen time
 
                     # Draw person boxes with team colors
                     color = self.team_colors[obj_id]
                     cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(self.frame, f"ID: {obj_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
                     person_boxes.append((x1, y1, x2, y2))
+
+            # Remove IDs not seen in the last 4 seconds
+            self.remove_unused_ids(current_time)
 
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
@@ -253,6 +261,15 @@ class Shot:
         if distances[best_match_index] < 0.5:  # Threshold for considering a match
             return list(self.histograms.keys())[best_match_index]
         return None
+
+    def remove_unused_ids(self, current_time):
+        ids_to_remove = [obj_id for obj_id, last_seen_time in self.last_seen.items() if current_time - last_seen_time > self.removal_time_threshold]
+        for obj_id in ids_to_remove:
+            del self.centroids[obj_id]
+            del self.histograms[obj_id]
+            del self.last_seen[obj_id]
+            if obj_id in self.team_colors:
+                del self.team_colors[obj_id]
 
 if __name__ == "__main__":
     Shot()

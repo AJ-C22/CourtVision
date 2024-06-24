@@ -8,6 +8,7 @@ from collections import defaultdict
 import threading
 import pyttsx3
 from sort.sort import Sort  # Import SORT from the sort directory
+from sklearn.metrics import pairwise_distances
 
 class Shot:
     
@@ -27,7 +28,8 @@ class Shot:
         self.last_shooting_team = None  # Last known shooting team
         self.engine = pyttsx3.init()
         self.centroids = {}  # To store centroids of detected persons with their IDs
-        self.tracker = Sort()  # Initialize SORT tracker
+        self.histograms = {}  # To store histograms of detected persons with their IDs
+        self.tracker = Sort(max_age=30, min_hits=3)  # Adjust max_age and min_hits for better tracking
         self.run()
     
     def run(self):
@@ -76,13 +78,26 @@ class Shot:
             for obj in tracked_objects:
                 x1, y1, x2, y2, obj_id = map(int, obj)
                 cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                self.centroids[obj_id] = (cx, cy)
 
-                # Draw person boxes with team colors
-                color = self.team_colors[obj_id]
-                cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(self.frame, f"ID: {obj_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-                person_boxes.append((x1, y1, x2, y2))
+                # Get the histogram of the person's clothing
+                person_roi = self.frame[y1:y2, x1:x2]
+                histogram = self.calculate_histogram(person_roi)
+
+                if histogram is not None:
+                    # Find the closest matching histogram from the previous frame
+                    if pairwise_distances and obj_id in self.histograms:
+                        best_match_id = self.get_best_match_id(histogram)
+                        if best_match_id is not None:
+                            obj_id = best_match_id
+
+                    self.centroids[obj_id] = (cx, cy)
+                    self.histograms[obj_id] = histogram
+
+                    # Draw person boxes with team colors
+                    color = self.team_colors[obj_id]
+                    cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(self.frame, f"ID: {obj_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                    person_boxes.append((x1, y1, x2, y2))
 
             # Check if the ball is in the shooting zone of any player
             self.current_shooting_team = None
@@ -219,6 +234,25 @@ class Shot:
     def announce_score(self, team_color):
         self.engine.say(f"{team_color} scored a point")
         self.engine.runAndWait()
+
+    def calculate_histogram(self, roi):
+        if roi is None or roi.size == 0:
+            return None
+        # Convert the ROI to HSV color space
+        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        # Calculate the color histogram for the ROI
+        hist = cv2.calcHist([hsv_roi], [0, 1], None, [50, 60], [0, 180, 0, 256])
+        # Normalize the histogram
+        hist = cv2.normalize(hist, hist).flatten()
+        return hist
+
+    def get_best_match_id(self, current_hist):
+        # Calculate distances between current histogram and stored histograms
+        distances = pairwise_distances([current_hist], list(self.histograms.values()), metric='cosine')[0]
+        best_match_index = np.argmin(distances)
+        if distances[best_match_index] < 0.5:  # Threshold for considering a match
+            return list(self.histograms.keys())[best_match_index]
+        return None
 
 if __name__ == "__main__":
     Shot()

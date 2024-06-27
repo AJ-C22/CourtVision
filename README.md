@@ -9,7 +9,7 @@ CourtVision is an AI-enhanced basketball score counter using YOLO for object det
 - Ultralytics
 - OpenCV
 - YOLOv10
-- DeepSORT
+- SORT algorithm: https://github.com/abewley/sort 
 - SciPy
 - NumPy
 - collections (defaultdict)

@@ -1,6 +1,6 @@
 # 🏀 CourtVision: An AI-Enhanced Basketball Score Counter
 
-CourtVision is an AI-enhanced basketball score counter using YOLO for object detection and DeepSORT for tracking. It detects the ball, players, and rim to automatically count the scores for two teams.
+CourtVision is an AI-enhanced basketball score counter using YOLO for object detection and SORT for tracking. It detects the ball, players, and rim to automatically count the scores for two teams.
 
 ## 📋 Requirements
 

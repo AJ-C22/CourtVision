@@ -97,3 +97,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [YOLO](https://github.com/ultralytics/yolov5)
 - [DeepSORT](https://github.com/nwojke/deep_sort)
 
+## 📋 To-do
+- add a react frontend to make program easily accessible
+- add voice commands (read score, remove last point, set score, new game)
+- Add 3 point-line

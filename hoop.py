@@ -9,6 +9,7 @@ import threading
 import pyttsx3
 from sort.sort import Sort  # Import SORT from the sort directory
 from sklearn.metrics import pairwise_distances
+import speech_recognition as sr  # Import the speech recognition library
 
 class Shot:
     
@@ -32,8 +33,59 @@ class Shot:
         self.last_seen = {}  # To store the last seen time of each ID
         self.tracker = Sort(max_age=30, min_hits=3)  # Adjust max_age and min_hits for better tracking
         self.removal_time_threshold = 4  # Time in seconds to remove unused IDs
+        self.recognizer = sr.Recognizer()  # Initialize the recognizer
+        self.microphone = sr.Microphone()  # Initialize the microphone
+        self.voice_thread = threading.Thread(target=self.listen_to_voice_commands)
+        self.voice_thread.start()
         self.run()
     
+    def listen_to_voice_commands(self):
+        while True:
+            try:
+                with self.microphone as source:
+                    self.recognizer.adjust_for_ambient_noise(source)
+                    print("Listening for voice commands...")
+                    audio = self.recognizer.listen(source)
+                
+                command = self.recognizer.recognize_google(audio).lower()
+                print(f"Voice command received: {command}")
+
+                if "read score" in command:
+                    self.announce_score()
+                elif "remove last point" in command:
+                    self.remove_last_point()
+                elif "set score" in command:
+                    self.set_score(command)
+                elif "new game" in command:
+                    self.new_game()
+            except sr.UnknownValueError:
+                print("Could not understand the audio")
+            except sr.RequestError:
+                print("Could not request results; check your network connection")
+    
+    def announce_score(self):
+        score_message = f"Orange team: {self.num_orange_buckets}, Blue team: {self.num_blue_buckets}"
+        self.engine.say(score_message)
+        self.engine.runAndWait()
+    
+    def remove_last_point(self):
+        if self.last_shooting_team == (0, 165, 255) and self.num_orange_buckets > 0:
+            self.num_orange_buckets -= 1
+        elif self.last_shooting_team == (255, 0, 0) and self.num_blue_buckets > 0:
+            self.num_blue_buckets -= 1
+    
+    def set_score(self, command):
+        try:
+            scores = [int(s) for s in command.split() if s.isdigit()]
+            if len(scores) == 2:
+                self.num_orange_buckets, self.num_blue_buckets = scores
+        except ValueError:
+            print("Error setting score from voice command")
+    
+    def new_game(self):
+        self.num_orange_buckets = 0
+        self.num_blue_buckets = 0
+
     def run(self):
         ball_position = None
         rim_position = None

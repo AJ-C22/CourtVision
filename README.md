@@ -101,3 +101,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - add a react frontend to make program easily accessible
 - add voice commands (read score, remove last point, set score, new game)
 - Add 3 point-line
+- implement position estimation for 3 point line

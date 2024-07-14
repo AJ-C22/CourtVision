@@ -1,23 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from "react";
 
 function App() {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [output, setOutput] = useState(null);
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+  };
+
+  const handleUpload = async () => {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    const response = await fetch("http://localhost:8000/process-video/", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.blob();
+    const imageUrl = URL.createObjectURL(data);
+    setOutput(imageUrl);
+  };
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <input type="file" onChange={handleFileChange} />
+      <button onClick={handleUpload}>Upload</button>
+      {output && <img src={output} alt="Processed Output" />}
     </div>
   );
 }

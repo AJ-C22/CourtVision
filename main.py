@@ -10,13 +10,15 @@ import pyttsx3
 from sort.sort import Sort  # Import SORT from the sort directory
 from sklearn.metrics import pairwise_distances
 import speech_recognition as sr  # Import the speech recognition library
+import tkinter as tk
+from tkinter import messagebox
 
 class Shot:
     
     def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
-        self.cap = cv2.VideoCapture(0)
+        self.cap = None  # Initialize cap to None
         self.dots = []  # List to store dot positions
         self.goal_count = 0
         self.ball_in_top_box = False
@@ -37,8 +39,8 @@ class Shot:
         self.microphone = sr.Microphone()  # Initialize the microphone
         self.voice_thread = threading.Thread(target=self.listen_to_voice_commands)
         self.voice_thread.start()
-        self.run()
-    
+        self.running = False  # Flag to indicate if the video processing is running
+
     def listen_to_voice_commands(self):
         while True:
             try:
@@ -86,6 +88,11 @@ class Shot:
         self.num_orange_buckets = 0
         self.num_blue_buckets = 0
 
+    def start_video_processing(self):
+        self.cap = cv2.VideoCapture(0)
+        self.running = True
+        self.run()
+
     def run(self):
         ball_position = None
         rim_position = None
@@ -93,7 +100,7 @@ class Shot:
         cv2.namedWindow('Frame')
         cv2.setMouseCallback('Frame', self.on_mouse_click)
 
-        while True:
+        while self.running:
             ret, self.frame = self.cap.read()
 
             if not ret:
@@ -251,10 +258,15 @@ class Shot:
 
             # Close if 'q' is clicked
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.stop_video_processing()
                 break
 
-        self.cap.release()
+        if self.cap:
+            self.cap.release()
         cv2.destroyAllWindows()
+
+    def stop_video_processing(self):
+        self.running = False
 
     def on_mouse_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -323,5 +335,29 @@ class Shot:
             if obj_id in self.team_colors:
                 del self.team_colors[obj_id]
 
+class CourtVisionApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("CourtVision")
+        self.root.geometry("300x200")
+        
+        self.shot = Shot()
+
+        self.start_button = tk.Button(root, text="Start", command=self.start)
+        self.start_button.pack(pady=20)
+
+        self.exit_button = tk.Button(root, text="Exit", command=self.exit)
+        self.exit_button.pack(pady=20)
+
+    def start(self):
+        threading.Thread(target=self.shot.start_video_processing).start()
+
+    def exit(self):
+        self.shot.stop_video_processing()
+        self.root.quit()
+        self.root.destroy()
+
 if __name__ == "__main__":
-    Shot()
+    root = tk.Tk()
+    app = CourtVisionApp(root)
+    root.mainloop()

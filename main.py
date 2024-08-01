@@ -15,7 +15,7 @@ from tkinter import messagebox
 
 class Shot:
     
-    def __init__(self):
+    def __init__(self, frame_callback):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
         self.cap = None  # Initialize cap to None
@@ -40,6 +40,7 @@ class Shot:
         self.voice_thread = threading.Thread(target=self.listen_to_voice_commands)
         self.voice_thread.start()
         self.running = False  # Flag to indicate if the video processing is running
+        self.frame_callback = frame_callback  # Callback to update the Tkinter frame
 
     def listen_to_voice_commands(self):
         while True:
@@ -254,7 +255,8 @@ class Shot:
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
 
-            cv2.imshow('Frame', self.frame)
+            # Display the frame in the Tkinter window
+            self.frame_callback(self.frame)
 
             # Close if 'q' is clicked
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -335,29 +337,49 @@ class Shot:
             if obj_id in self.team_colors:
                 del self.team_colors[obj_id]
 
-class CourtVisionApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("CourtVision")
-        self.root.geometry("300x200")
-        
-        self.shot = Shot()
+class CourtVisionApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("CourtVision")
+        self.geometry("800x600")
 
-        self.start_button = tk.Button(root, text="Start", command=self.start)
+        self.shot = Shot(self.update_frame)
+
+        self.start_frame = tk.Frame(self)
+        self.start_frame.pack(fill="both", expand=True)
+
+        self.start_button = tk.Button(self.start_frame, text="Start", command=self.start_video)
         self.start_button.pack(pady=20)
 
-        self.exit_button = tk.Button(root, text="Exit", command=self.exit)
+        self.exit_button = tk.Button(self.start_frame, text="Exit", command=self.exit_app)
         self.exit_button.pack(pady=20)
 
-    def start(self):
+        self.video_frame = tk.Frame(self)
+        self.video_frame.pack_forget()
+
+        self.canvas = tk.Canvas(self.video_frame)
+        self.canvas.pack(fill="both", expand=True)
+
+    def start_video(self):
+        self.start_frame.pack_forget()
+        self.video_frame.pack(fill="both", expand=True)
         threading.Thread(target=self.shot.start_video_processing).start()
 
-    def exit(self):
+    def update_frame(self, frame):
+        self.photo = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        self.photo = np.array(self.photo)
+        self.photo = np.rot90(self.photo)
+        self.photo = np.flipud(self.photo)
+        self.photo = cv2.cvtColor(self.photo, cv2.COLOR_BGR2RGB)
+        self.photo = tk.PhotoImage(image=tk.Image.fromarray(self.photo))
+
+        self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+
+    def exit_app(self):
         self.shot.stop_video_processing()
-        self.root.quit()
-        self.root.destroy()
+        self.quit()
+        self.destroy()
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = CourtVisionApp(root)
-    root.mainloop()
+    app = CourtVisionApp()
+    app.mainloop()

@@ -10,6 +10,7 @@ import pyttsx3
 from sort.sort import Sort  # Import SORT from the sort directory
 from sklearn.metrics import pairwise_distances
 import speech_recognition as sr  # Import the speech recognition library
+from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import messagebox
 
@@ -367,13 +368,11 @@ class CourtVisionApp(tk.Tk):
 
     def update_frame(self, frame):
         self.photo = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        self.photo = np.array(self.photo)
-        self.photo = np.rot90(self.photo)
-        self.photo = np.flipud(self.photo)
-        self.photo = cv2.cvtColor(self.photo, cv2.COLOR_BGR2RGB)
-        self.photo = tk.PhotoImage(image=tk.Image.fromarray(self.photo))
-
-        self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+        pil_image = Image.fromarray(self.photo)
+        pil_image = pil_image.rotate(-90, expand=True)  # Rotate by -90 degrees
+        pil_image = pil_image.transpose(Image.FLIP_TOP_BOTTOM)  # Flip vertically
+        self.photo_tk = ImageTk.PhotoImage(image=pil_image)
+        self.canvas.create_image(0, 0, image=self.photo_tk, anchor=tk.NW)
 
     def exit_app(self):
         self.shot.stop_video_processing()

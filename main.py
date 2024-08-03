@@ -10,13 +10,12 @@ import pyttsx3
 from sort.sort import Sort  # Import SORT from the sort directory
 from sklearn.metrics import pairwise_distances
 import speech_recognition as sr  # Import the speech recognition library
-from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import messagebox
 
 class Shot:
     
-    def __init__(self, frame_callback):
+    def __init__(self):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
         self.cap = None  # Initialize cap to None
@@ -41,7 +40,6 @@ class Shot:
         self.voice_thread = threading.Thread(target=self.listen_to_voice_commands)
         self.voice_thread.start()
         self.running = False  # Flag to indicate if the video processing is running
-        self.frame_callback = frame_callback  # Callback to update the Tkinter frame
 
     def listen_to_voice_commands(self):
         while True:
@@ -66,7 +64,7 @@ class Shot:
                 print("Could not understand the audio")
             except sr.RequestError:
                 print("Could not request results; check your network connection")
-    
+
     def announce_score(self):
         score_message = f"Orange team: {self.num_orange_buckets}, Blue team: {self.num_blue_buckets}"
         self.engine.say(score_message)
@@ -77,7 +75,7 @@ class Shot:
             self.num_orange_buckets -= 1
         elif self.last_shooting_team == (255, 0, 0) and self.num_blue_buckets > 0:
             self.num_blue_buckets -= 1
-    
+
     def set_score(self, command):
         try:
             scores = [int(s) for s in command.split() if s.isdigit()]
@@ -256,8 +254,7 @@ class Shot:
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
 
-            # Display the frame in the Tkinter window
-            self.frame_callback(self.frame)
+            cv2.imshow('Frame', self.frame)
 
             # Close if 'q' is clicked
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -338,47 +335,29 @@ class Shot:
             if obj_id in self.team_colors:
                 del self.team_colors[obj_id]
 
-class CourtVisionApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("CourtVision")
-        self.geometry("800x600")
+class CourtVisionApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("CourtVision")
+        self.root.geometry("300x200")
+        
+        self.shot = Shot()
 
-        self.shot = Shot(self.update_frame)
-
-        self.start_frame = tk.Frame(self)
-        self.start_frame.pack(fill="both", expand=True)
-
-        self.start_button = tk.Button(self.start_frame, text="Start", command=self.start_video)
+        self.start_button = tk.Button(root, text="Start", command=self.start)
         self.start_button.pack(pady=20)
 
-        self.exit_button = tk.Button(self.start_frame, text="Exit", command=self.exit_app)
+        self.exit_button = tk.Button(root, text="Exit", command=self.exit)
         self.exit_button.pack(pady=20)
 
-        self.video_frame = tk.Frame(self)
-        self.video_frame.pack_forget()
-
-        self.canvas = tk.Canvas(self.video_frame)
-        self.canvas.pack(fill="both", expand=True)
-
-    def start_video(self):
-        self.start_frame.pack_forget()
-        self.video_frame.pack(fill="both", expand=True)
+    def start(self):
         threading.Thread(target=self.shot.start_video_processing).start()
 
-    def update_frame(self, frame):
-        self.photo = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(self.photo)
-        pil_image = pil_image.rotate(-90, expand=True)  # Rotate by -90 degrees
-        pil_image = pil_image.transpose(Image.FLIP_TOP_BOTTOM)  # Flip vertically
-        self.photo_tk = ImageTk.PhotoImage(image=pil_image)
-        self.canvas.create_image(0, 0, image=self.photo_tk, anchor=tk.NW)
-
-    def exit_app(self):
+    def exit(self):
         self.shot.stop_video_processing()
-        self.quit()
-        self.destroy()
+        self.root.quit()
+        self.root.destroy()
 
 if __name__ == "__main__":
-    app = CourtVisionApp()
-    app.mainloop()
+    root = tk.Tk()
+    app = CourtVisionApp(root)
+    root.mainloop()

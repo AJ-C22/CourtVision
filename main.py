@@ -127,10 +127,12 @@ class Shot:
                             detections.append([x1, y1, x2, y2, conf])
                         elif current_class == "ball":
                             ball_position = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            # Draw the ball detection box
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                             cv2.putText(self.frame, "Ball", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                         elif current_class == "rim":
                             rim_position = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            # Draw the rim detection box
                             cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
                             cv2.putText(self.frame, "Rim", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 

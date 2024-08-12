@@ -12,10 +12,11 @@ from sklearn.metrics import pairwise_distances
 import speech_recognition as sr  # Import the speech recognition library
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk  # For Combobox
 
 class Shot:
     
-    def __init__(self, frame_callback):
+    def __init__(self, team1_color_name, team2_color_name):
         self.model = YOLO("best.pt")
         self.class_names = ['ball', 'person', 'rim']
         self.cap = None  # Initialize cap to None
@@ -23,10 +24,9 @@ class Shot:
         self.goal_count = 0
         self.ball_in_top_box = False
         self.ball_positions = []  # List to store ball positions for smoothing
-        self.team2_centroids = []  # List to store team 2 centroids
-        self.team_colors = defaultdict(lambda: (255, 0, 0))  # Default color blue for team 1
-        self.num_orange_buckets = 0  # Score for orange team
-        self.num_blue_buckets = 0  # Score for blue team
+        self.team_colors = defaultdict(lambda: (128, 128, 128))  # Default color gray
+        self.num_team1_buckets = 0  # Score for team 1
+        self.num_team2_buckets = 0  # Score for team 2
         self.current_shooting_team = None  # Team currently shooting
         self.last_shooting_team = None  # Last known shooting team
         self.engine = pyttsx3.init()
@@ -40,8 +40,52 @@ class Shot:
         self.voice_thread = threading.Thread(target=self.listen_to_voice_commands)
         self.voice_thread.start()
         self.running = False  # Flag to indicate if the video processing is running
-        self.frame_callback = frame_callback  # Callback to update the Tkinter frame
 
+        # Set team colors
+        self.color_name_to_bgr = {
+            'purple': (128, 0, 128),
+            'red': (0, 0, 255),
+            'yellow': (0, 255, 255),
+            'green': (0, 255, 0),
+            'blue': (255, 0, 0),
+            'orange': (0, 165, 255),
+            'black': (0, 0, 0),
+            'white': (255, 255, 255)
+        }
+
+        self.color_name_to_hsv = {
+            'purple': (np.array([125, 50, 50]), np.array([155, 255, 255])),
+            'red': (np.array([0, 70, 50]), np.array([10, 255, 255])),
+            'red2': (np.array([170, 70, 50]), np.array([180, 255, 255])),  # For red wrapping hue
+            'yellow': (np.array([20, 100, 100]), np.array([30, 255, 255])),
+            'green': (np.array([40, 50, 50]), np.array([80, 255, 255])),
+            'blue': (np.array([90, 50, 50]), np.array([130, 255, 255])),
+            'orange': (np.array([10, 100, 100]), np.array([20, 255, 255])),
+            'black': (np.array([0, 0, 0]), np.array([180, 255, 30])),
+            'white': (np.array([0, 0, 231]), np.array([180, 25, 255]))
+        }
+
+        self.team1_color_name = team1_color_name.lower()
+        self.team2_color_name = team2_color_name.lower()
+
+        # Check for invalid color names
+        if self.team1_color_name not in self.color_name_to_bgr or self.team2_color_name not in self.color_name_to_bgr:
+            raise ValueError("Invalid color names provided for teams.")
+
+        self.team1_bgr = self.color_name_to_bgr[self.team1_color_name]
+        self.team2_bgr = self.color_name_to_bgr[self.team2_color_name]
+
+        # For red, handle the hue wrap-around
+        if self.team1_color_name == 'red':
+            self.team1_hsv_ranges = [self.color_name_to_hsv['red'], self.color_name_to_hsv['red2']]
+        else:
+            self.team1_hsv_ranges = [self.color_name_to_hsv[self.team1_color_name]]
+
+        if self.team2_color_name == 'red':
+            self.team2_hsv_ranges = [self.color_name_to_hsv['red'], self.color_name_to_hsv['red2']]
+        else:
+            self.team2_hsv_ranges = [self.color_name_to_hsv[self.team2_color_name]]
+    
     def listen_to_voice_commands(self):
         while True:
             try:
@@ -65,29 +109,29 @@ class Shot:
                 print("Could not understand the audio")
             except sr.RequestError:
                 print("Could not request results; check your network connection")
-    
+
     def announce_score(self):
-        score_message = f"Orange team: {self.num_orange_buckets}, Blue team: {self.num_blue_buckets}"
+        score_message = f"{self.team1_color_name.capitalize()} team: {self.num_team1_buckets}, {self.team2_color_name.capitalize()} team: {self.num_team2_buckets}"
         self.engine.say(score_message)
         self.engine.runAndWait()
     
     def remove_last_point(self):
-        if self.last_shooting_team == (0, 165, 255) and self.num_orange_buckets > 0:
-            self.num_orange_buckets -= 1
-        elif self.last_shooting_team == (255, 0, 0) and self.num_blue_buckets > 0:
-            self.num_blue_buckets -= 1
-    
+        if self.last_shooting_team == self.team1_bgr and self.num_team1_buckets > 0:
+            self.num_team1_buckets -= 1
+        elif self.last_shooting_team == self.team2_bgr and self.num_team2_buckets > 0:
+            self.num_team2_buckets -= 1
+
     def set_score(self, command):
         try:
             scores = [int(s) for s in command.split() if s.isdigit()]
             if len(scores) == 2:
-                self.num_orange_buckets, self.num_blue_buckets = scores
+                self.num_team1_buckets, self.num_team2_buckets = scores
         except ValueError:
             print("Error setting score from voice command")
     
     def new_game(self):
-        self.num_orange_buckets = 0
-        self.num_blue_buckets = 0
+        self.num_team1_buckets = 0
+        self.num_team2_buckets = 0
 
     def start_video_processing(self):
         self.cap = cv2.VideoCapture(0)
@@ -99,7 +143,6 @@ class Shot:
         rim_position = None
 
         cv2.namedWindow('Frame')
-        cv2.setMouseCallback('Frame', self.on_mouse_click)
 
         while self.running:
             ret, self.frame = self.cap.read()
@@ -128,8 +171,17 @@ class Shot:
                     if conf > 0.4:  # Adjust the confidence threshold
                         if current_class == "person":
                             detections.append([x1, y1, x2, y2, conf])
+                        elif current_class == "ball":
+                            ball_position = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            # Draw the ball detection box
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                            cv2.putText(self.frame, "Ball", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        elif current_class == "rim":
+                            rim_position = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            # Draw the rim detection box
+                            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                            cv2.putText(self.frame, "Rim", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
-            # Update tracker with current frame detections
             if len(detections) > 0:
                 tracked_objects = self.tracker.update(np.array(detections))
             else:
@@ -137,32 +189,32 @@ class Shot:
 
             current_time = time.time()
 
-            # Extract the updated centroid positions and IDs
             person_boxes = []  # Initialize person_boxes list
             for obj in tracked_objects:
                 x1, y1, x2, y2, obj_id = map(int, obj)
                 cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
 
-                # Get the histogram of the person's clothing
                 person_roi = self.frame[y1:y2, x1:x2]
-                histogram = self.calculate_histogram(person_roi)
+                color_at_center = self.get_average_color(person_roi)
 
-                if histogram is not None:
-                    # Find the closest matching histogram from the previous frame
-                    if pairwise_distances and obj_id in self.histograms:
-                        best_match_id = self.get_best_match_id(histogram)
-                        if best_match_id is not None:
-                            obj_id = best_match_id
+                if color_at_center is not None:
+                    # Assign to teams based on the color at the center of the person
+                    if self.is_color(color_at_center, self.team1_hsv_ranges):
+                        self.team_colors[obj_id] = self.team1_bgr  # Team 1
+                    elif self.is_color(color_at_center, self.team2_hsv_ranges):
+                        self.team_colors[obj_id] = self.team2_bgr  # Team 2
+                    else:
+                        self.team_colors[obj_id] = (128, 128, 128)  # Gray (default)
+                else:
+                    self.team_colors[obj_id] = (128, 128, 128)  # Gray (default)
 
-                    self.centroids[obj_id] = (cx, cy)
-                    self.histograms[obj_id] = histogram
-                    self.last_seen[obj_id] = current_time  # Update last seen time
-
-                    # Draw person boxes with team colors
-                    color = self.team_colors[obj_id]
-                    cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(self.frame, f"ID: {obj_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-                    person_boxes.append((x1, y1, x2, y2))
+                # Draw person boxes with team colors
+                color = self.team_colors[obj_id]
+                cv2.rectangle(self.frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(self.frame, f"ID: {obj_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                person_boxes.append((x1, y1, x2, y2))
+                self.centroids[obj_id] = (cx, cy)
+                self.last_seen[obj_id] = current_time  # Update last seen time
 
             # Remove IDs not seen in the last 4 seconds
             self.remove_unused_ids(current_time)
@@ -178,18 +230,15 @@ class Shot:
 
                 # Check if the ball is in the shooting zone
                 if ball_position and shooting_zone[0] < ball_position[0] < shooting_zone[2] and shooting_zone[1] < ball_position[1] < shooting_zone[3]:
-                    self.current_shooting_team = self.team_colors[self.get_closest_centroid(self.centroids, ball_position)]
-                    self.last_shooting_team = self.current_shooting_team
+                    closest_id = self.get_closest_centroid(self.centroids, ball_position)
+                    if closest_id in self.team_colors:
+                        self.current_shooting_team = self.team_colors[closest_id]
+                        self.last_shooting_team = self.current_shooting_team
                     break
 
             # Loop over tracked centroids and draw them on the frame with team colors
             for (object_id, centroid) in self.centroids.items():
-                # Determine the color based on the team
                 color = self.team_colors[object_id]
-                if centroid in self.team2_centroids:
-                    color = (0, 165, 255)  # Orange for team 2
-
-                # Draw centroid and ID on the frame
                 cv2.circle(self.frame, centroid, 5, color, -1)
                 cv2.putText(self.frame, f"ID: {object_id}", (centroid[0] - 10, centroid[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -212,25 +261,25 @@ class Shot:
 
                 # Check if the ball is in the bottom box
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
-                    if self.last_shooting_team == (0, 165, 255):  # Orange
-                        self.num_orange_buckets += 1
-                        threading.Thread(target=self.announce_score, args=("Orange",)).start()
-                    elif self.last_shooting_team == (255, 0, 0):  # Blue
-                        self.num_blue_buckets += 1
-                        threading.Thread(target=self.announce_score, args=("Blue",)).start()
+                    if self.last_shooting_team == self.team1_bgr:  # Team 1
+                        self.num_team1_buckets += 1
+                        threading.Thread(target=self.announce_scoring_team, args=(self.team1_color_name.capitalize(),)).start()
+                    elif self.last_shooting_team == self.team2_bgr:  # Team 2
+                        self.num_team2_buckets += 1
+                        threading.Thread(target=self.announce_scoring_team, args=(self.team2_color_name.capitalize(),)).start()
                     self.ball_in_top_box = False  # Reset for the next goal
 
             # Display the scores for both teams
-            cv2.putText(self.frame, "Orange: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
-            cv2.putText(self.frame, f"{self.num_orange_buckets}", (150, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-            cv2.putText(self.frame, "| Blue: ", (200, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-            cv2.putText(self.frame, f"{self.num_blue_buckets}", (350, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(self.frame, f"{self.team1_color_name.capitalize()}: ", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, self.team1_bgr, 2)
+            cv2.putText(self.frame, f"{self.num_team1_buckets}", (150, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(self.frame, f"| {self.team2_color_name.capitalize()}: ", (200, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, self.team2_bgr, 2)
+            cv2.putText(self.frame, f"{self.num_team2_buckets}", (400, 470), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             # Display the shooting team permanently
-            if self.last_shooting_team == (0, 165, 255):  # Orange
-                cv2.putText(self.frame, "Shooting: Orange", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 165, 255), 2)
-            elif self.last_shooting_team == (255, 0, 0):  # Blue
-                cv2.putText(self.frame, "Shooting: Blue", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+            if self.last_shooting_team == self.team1_bgr:  # Team 1
+                cv2.putText(self.frame, f"Shooting: {self.team1_color_name.capitalize()}", (frame_width - 350, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, self.team1_bgr, 2)
+            elif self.last_shooting_team == self.team2_bgr:  # Team 2
+                cv2.putText(self.frame, f"Shooting: {self.team2_color_name.capitalize()}", (frame_width - 350, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, self.team2_bgr, 2)
 
             # Initialize current_frame_dots to an empty list
             current_frame_dots = []
@@ -255,10 +304,8 @@ class Shot:
                 smoothed_positions = gaussian_filter(np.array(self.ball_positions), sigma=1)
                 ball_position = tuple(smoothed_positions[-1].astype(int))
 
-            # Display the frame in the Tkinter window
-            self.frame_callback(self.frame)
+            cv2.imshow('Frame', self.frame)
 
-            # Close if 'q' is clicked
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.stop_video_processing()
                 break
@@ -270,27 +317,33 @@ class Shot:
     def stop_video_processing(self):
         self.running = False
 
-    def on_mouse_click(self, event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            # Check if the click is near any centroid
-            for object_id, centroid in self.centroids.items():
-                cx, cy = centroid
-                if abs(cx - x) < 10 and abs(cy - y) < 10:
-                    # Assign this centroid to team 2
-                    if centroid not in self.team2_centroids:
-                        self.team2_centroids.append(centroid)
-                        self.team_colors[object_id] = (0, 165, 255)  # Orange
-                    else:
-                        self.team2_centroids.remove(centroid)  # Allow toggling back to team 1
-                        self.team_colors[object_id] = (255, 0, 0)  # Blue
+    def get_average_color(self, roi):
+        """Calculate the average color in the ROI."""
+        if roi is None or roi.size == 0:
+            return None
+        # Calculate the mean color in the BGR space
+        average_color = np.mean(roi, axis=(0, 1)).astype(int)
+        return average_color
 
-    def update_centroids(self, centroids):
-        # This method updates centroids based on the given detections
-        updated_centroids = {}
-        for i, centroid in enumerate(centroids):
-            updated_centroids[i] = centroid
-        self.centroids = updated_centroids
-        return updated_centroids
+    def is_color(self, color_bgr, hsv_ranges):
+        """Check if the color is within the specified HSV ranges."""
+        hsv_color = cv2.cvtColor(np.uint8([[color_bgr]]), cv2.COLOR_BGR2HSV)[0][0]
+        for (lower_hsv, upper_hsv) in hsv_ranges:
+            if cv2.inRange(np.uint8([[hsv_color]]), lower_hsv, upper_hsv)[0][0] > 0:
+                return True
+        return False
+
+    def remove_unused_ids(self, current_time):
+        ids_to_remove = [obj_id for obj_id, last_seen_time in self.last_seen.items() if current_time - last_seen_time > self.removal_time_threshold]
+        for obj_id in ids_to_remove:
+            if obj_id in self.centroids:
+                del self.centroids[obj_id]
+            if obj_id in self.histograms:
+                del self.histograms[obj_id]
+            if obj_id in self.last_seen:
+                del self.last_seen[obj_id]
+            if obj_id in self.team_colors:
+                del self.team_colors[obj_id]
 
     def get_closest_centroid(self, centroids, ball_position):
         closest_id = None
@@ -305,81 +358,59 @@ class Shot:
     def calculate_distance(self, point1, point2):
         return np.linalg.norm(np.array(point1) - np.array(point2))
 
-    def announce_score(self, team_color):
-        self.engine.say(f"{team_color} scored a point")
+    def announce_scoring_team(self, team_color_name):
+        self.engine.say(f"{team_color_name} team scored a point")
         self.engine.runAndWait()
 
-    def calculate_histogram(self, roi):
-        if roi is None or roi.size == 0:
-            return None
-        # Convert the ROI to HSV color space
-        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        # Calculate the color histogram for the ROI
-        hist = cv2.calcHist([hsv_roi], [0, 1], None, [50, 60], [0, 180, 0, 256])
-        # Normalize the histogram
-        hist = cv2.normalize(hist, hist).flatten()
-        return hist
+class CourtVisionApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("CourtVision")
+        self.root.geometry("400x300")
+        
+        # Available colors
+        self.available_colors = ['Purple', 'Red', 'Yellow', 'Green', 'Blue', 'Orange', 'Black', 'White']
 
-    def get_best_match_id(self, current_hist):
-        # Calculate distances between current histogram and stored histograms
-        distances = pairwise_distances([current_hist], list(self.histograms.values()), metric='cosine')[0]
-        best_match_index = np.argmin(distances)
-        if distances[best_match_index] < 0.5:  # Threshold for considering a match
-            return list(self.histograms.keys())[best_match_index]
-        return None
+        # Team 1 selection
+        self.team1_label = tk.Label(root, text="Select Team 1 Color:")
+        self.team1_label.pack(pady=5)
+        self.team1_color = tk.StringVar()
+        self.team1_color.set(self.available_colors[0])  # Default selection
+        self.team1_dropdown = ttk.Combobox(root, textvariable=self.team1_color, values=self.available_colors, state="readonly")
+        self.team1_dropdown.pack(pady=5)
 
-    def remove_unused_ids(self, current_time):
-        ids_to_remove = [obj_id for obj_id, last_seen_time in self.last_seen.items() if current_time - last_seen_time > self.removal_time_threshold]
-        for obj_id in ids_to_remove:
-            del self.centroids[obj_id]
-            del self.histograms[obj_id]
-            del self.last_seen[obj_id]
-            if obj_id in self.team_colors:
-                del self.team_colors[obj_id]
+        # Team 2 selection
+        self.team2_label = tk.Label(root, text="Select Team 2 Color:")
+        self.team2_label.pack(pady=5)
+        self.team2_color = tk.StringVar()
+        self.team2_color.set(self.available_colors[1])  # Default selection
+        self.team2_dropdown = ttk.Combobox(root, textvariable=self.team2_color, values=self.available_colors, state="readonly")
+        self.team2_dropdown.pack(pady=5)
 
-class CourtVisionApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("CourtVision")
-        self.geometry("800x600")
-
-        self.shot = Shot(self.update_frame)
-
-        self.start_frame = tk.Frame(self)
-        self.start_frame.pack(fill="both", expand=True)
-
-        self.start_button = tk.Button(self.start_frame, text="Start", command=self.start_video)
+        self.start_button = tk.Button(root, text="Start", command=self.start)
         self.start_button.pack(pady=20)
 
-        self.exit_button = tk.Button(self.start_frame, text="Exit", command=self.exit_app)
+        self.exit_button = tk.Button(root, text="Exit", command=self.exit)
         self.exit_button.pack(pady=20)
 
-        self.video_frame = tk.Frame(self)
-        self.video_frame.pack_forget()
+    def start(self):
+        team1 = self.team1_color.get()
+        team2 = self.team2_color.get()
 
-        self.canvas = tk.Canvas(self.video_frame)
-        self.canvas.pack(fill="both", expand=True)
+        if team1 == team2:
+            messagebox.showerror("Error", "Team colors must be different.")
+            return
 
-    def start_video(self):
-        self.start_frame.pack_forget()
-        self.video_frame.pack(fill="both", expand=True)
+        self.shot = Shot(team1, team2)
         threading.Thread(target=self.shot.start_video_processing).start()
 
-    def update_frame(self, frame):
-        self.photo = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        self.photo = np.array(self.photo)
-        self.photo = np.rot90(self.photo)
-        self.photo = np.flipud(self.photo)
-        self.photo = cv2.cvtColor(self.photo, cv2.COLOR_BGR2RGB)
-        self.photo = tk.PhotoImage(image=tk.Image.fromarray(self.photo))
-
-        self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
-
-    def exit_app(self):
-        self.shot.stop_video_processing()
-        self.quit()
-        self.destroy()
+    def exit(self):
+        if hasattr(self, 'shot'):
+            self.shot.stop_video_processing()
+        self.root.quit()
+        self.root.destroy()
 
 if __name__ == "__main__":
-    app = CourtVisionApp()
-    app.mainloop()
+    root = tk.Tk()
+    app = CourtVisionApp(root)
+    root.mainloop()

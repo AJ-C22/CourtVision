@@ -13,6 +13,7 @@ import speech_recognition as sr  # Import the speech recognition library
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk  # For Combobox
+import tkinter.font as tkFont
 
 class Shot:
     
@@ -368,6 +369,9 @@ class CourtVisionApp:
         self.root.title("CourtVision")
         self.root.geometry("400x400")  # Adjusted for the logo height
 
+        # Load the custom font
+        self.custom_font = tkFont.Font(file="Bombing.ttf", size=12)
+
         # Load and display the logo
         self.logo_image = tk.PhotoImage(file="logo.png")
         self.logo_label = tk.Label(root, image=self.logo_image)
@@ -377,7 +381,7 @@ class CourtVisionApp:
         self.available_colors = ['Purple', 'Red', 'Yellow', 'Green', 'Blue', 'Orange', 'Black', 'White']
 
         # Team 1 selection
-        self.team1_label = tk.Label(root, text="Select Team 1 Color:")
+        self.team1_label = tk.Label(root, text="Select Team 1 Color:", font=self.custom_font)
         self.team1_label.pack(pady=5)
         self.team1_color = tk.StringVar()
         self.team1_color.set(self.available_colors[0])  # Default selection
@@ -385,17 +389,17 @@ class CourtVisionApp:
         self.team1_dropdown.pack(pady=5)
 
         # Team 2 selection
-        self.team2_label = tk.Label(root, text="Select Team 2 Color:")
+        self.team2_label = tk.Label(root, text="Select Team 2 Color:", font=self.custom_font)
         self.team2_label.pack(pady=5)
         self.team2_color = tk.StringVar()
         self.team2_color.set(self.available_colors[1])  # Default selection
         self.team2_dropdown = ttk.Combobox(root, textvariable=self.team2_color, values=self.available_colors, state="readonly")
         self.team2_dropdown.pack(pady=5)
 
-        self.start_button = tk.Button(root, text="Start", command=self.start)
+        self.start_button = tk.Button(root, text="Start", command=self.start, font=self.custom_font)
         self.start_button.pack(pady=20)
 
-        self.exit_button = tk.Button(root, text="Exit", command=self.exit)
+        self.exit_button = tk.Button(root, text="Exit", command=self.exit, font=self.custom_font)
         self.exit_button.pack(pady=20)
 
     def start(self):
@@ -406,7 +410,7 @@ class CourtVisionApp:
             messagebox.showerror("Error", "Team colors must be different.")
             return
 
-        self.shot = Shot(team1, team2)
+        self.shot = Shot(team1, team2, self.custom_font)
         threading.Thread(target=self.shot.start_video_processing).start()
 
     def exit(self):
@@ -414,7 +418,7 @@ class CourtVisionApp:
             self.shot.stop_video_processing()
         self.root.quit()
         self.root.destroy()
-
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = CourtVisionApp(root)

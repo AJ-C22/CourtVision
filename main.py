@@ -366,8 +366,13 @@ class CourtVisionApp:
     def __init__(self, root):
         self.root = root
         self.root.title("CourtVision")
-        self.root.geometry("400x300")
-        
+        self.root.geometry("400x400")  # Adjusted for the logo height
+
+        # Load and display the logo
+        self.logo_image = tk.PhotoImage(file="logo.png")
+        self.logo_label = tk.Label(root, image=self.logo_image)
+        self.logo_label.pack(pady=10)
+
         # Available colors
         self.available_colors = ['Purple', 'Red', 'Yellow', 'Green', 'Blue', 'Orange', 'Black', 'White']
 

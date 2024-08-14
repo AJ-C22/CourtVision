@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk  # For Combobox
 import tkinter.font as tkFont
+from PIL import ImageFont, ImageDraw, Image, ImageTk
 
 class Shot:
     
@@ -365,17 +366,22 @@ class Shot:
 
 class CourtVisionApp:
     def __init__(self, root):
-        self.root = root
-        self.root.title("CourtVision")
-        self.root.geometry("400x400")  # Adjusted for the logo height
+        font_path = "Bombing.ttf"
+        font_size = 12
+        custom_font = ImageFont.truetype(font_path, font_size)
 
-        # Load the custom font
-        self.custom_font = tkFont.Font(file="Bombing.ttf", size=12)
+        # Create an image with text using the custom font
+        image = Image.new("RGBA", (400, 50), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 10), "CourtVision", font=custom_font, fill=(0, 0, 0))
 
-        # Load and display the logo
-        self.logo_image = tk.PhotoImage(file="logo.png")
-        self.logo_label = tk.Label(root, image=self.logo_image)
-        self.logo_label.pack(pady=10)
+        # Convert the image to a format Tkinter can display
+        photo = ImageTk.PhotoImage(image)
+
+        # Display the image with text in a Tkinter label
+        label = tk.Label(root, image=photo)
+        label.image = photo  # Keep a reference to avoid garbage collection
+        label.pack(pady=10)
 
         # Available colors
         self.available_colors = ['Purple', 'Red', 'Yellow', 'Green', 'Blue', 'Orange', 'Black', 'White']

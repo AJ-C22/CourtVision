@@ -13,9 +13,8 @@ import speech_recognition as sr  # Import the speech recognition library
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk  # For Combobox
-from PIL import Image, ImageTk
-import threading
-
+import tkinter.font as tkFont
+from PIL import ImageFont, ImageDraw, Image, ImageTk
 
 class Shot:
     
@@ -357,24 +356,22 @@ class Shot:
 
 class CourtVisionApp:
     def __init__(self, root):
-        self.root = root
-        self.root.title("CourtVision")
-        self.root.configure(bg='#2F323C')  
-        self.root.update_idletasks()
-        width = 400
-        height = 600
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        font_path = "Bombing.ttf"
+        font_size = 12
+        custom_font = ImageFont.truetype(font_path, font_size)
 
-        self.card_frame = tk.Frame(self.root, bg='#2F323C')  # Light gray background
-        self.card_frame.place(relx=0.5, rely=0.5, anchor='center', width=350, height=450)
+        # Create an image with text using the custom font
+        image = Image.new("RGBA", (400, 50), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 10), "CourtVision", font=custom_font, fill=(0, 0, 0))
 
-        self.title_frame = tk.Frame(self.card_frame, bg='#f2f2f2')
-        self.title_frame.pack(pady=20)
+        # Convert the image to a format Tkinter can display
+        photo = ImageTk.PhotoImage(image)
 
-        self.title_label1 = tk.Label(self.title_frame, text="Court", font=("Helvetica", 36, "bold"), fg='#FF9800', bg='#2F323C')
-        self.title_label1.pack(side='left')
+        # Display the image with text in a Tkinter label
+        label = tk.Label(root, image=photo)
+        label.image = photo  # Keep a reference to avoid garbage collection
+        label.pack(pady=10)
 
         self.title_label2 = tk.Label(self.title_frame, text="Vision", font=("Helvetica", 36, "bold"), fg='white', bg='#2F323C')
         self.title_label2.pack(side='left')

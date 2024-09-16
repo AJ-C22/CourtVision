@@ -13,7 +13,9 @@ import speech_recognition as sr  # Import the speech recognition library
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk  # For Combobox
-import tkinter.font as tkFont
+from PIL import Image, ImageTk
+import threading
+
 
 class Shot:
     
@@ -237,7 +239,6 @@ class Shot:
                         self.last_shooting_team = self.current_shooting_team
                     break
 
-            # Loop over tracked centroids and draw them on the frame with team colors
             for (object_id, centroid) in self.centroids.items():
                 color = self.team_colors[object_id]
                 cv2.circle(self.frame, centroid, 5, color, -1)
@@ -245,22 +246,18 @@ class Shot:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             if rim_position:
-                # Define the top and bottom boxes relative to the rim position
                 rim_x, rim_y = rim_position
                 box_width, box_height = 50, 50  # Define the size of the boxes
 
                 top_box = (rim_x - box_width // 2, rim_y - box_height, rim_x + box_width // 2, rim_y)
                 bottom_box = (rim_x - box_width // 2, rim_y, rim_x + box_width // 2, rim_y + box_height)
 
-                # Draw the top and bottom boxes
                 cv2.rectangle(self.frame, (top_box[0], top_box[1]), (top_box[2], top_box[3]), (0, 255, 255), 2)
                 cv2.rectangle(self.frame, (bottom_box[0], bottom_box[1]), (bottom_box[2], bottom_box[3]), (255, 0, 255), 2)
 
-                # Check if the ball is in the top box
                 if ball_position and top_box[0] < ball_position[0] < top_box[2] and top_box[1] < ball_position[1] < top_box[3]:
                     self.ball_in_top_box = True
 
-                # Check if the ball is in the bottom box
                 if self.ball_in_top_box and ball_position and bottom_box[0] < ball_position[0] < bottom_box[2] and bottom_box[1] < ball_position[1] < bottom_box[3]:
                     if self.last_shooting_team == self.team1_bgr:  # Team 1
                         self.num_team1_buckets += 1
@@ -282,10 +279,8 @@ class Shot:
             elif self.last_shooting_team == self.team2_bgr:  # Team 2
                 cv2.putText(self.frame, f"Shooting: {self.team2_color_name.capitalize()}", (frame_width - 350, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, self.team2_bgr, 2)
 
-            # Initialize current_frame_dots to an empty list
             current_frame_dots = []
 
-            # Check if the ball is above the rim and manage the dots
             if ball_position and rim_position and ball_position[1] < rim_position[1]:
                 if not self.dots or time.time() - self.dots[-1]['time'] >= 0.1:
                     self.dots.append({'position': ball_position, 'time': time.time()})
@@ -293,11 +288,9 @@ class Shot:
             else:
                 self.dots = []  # Clear dots when ball goes below rim
 
-            # Draw all current dots
             for dot_position in current_frame_dots:
                 cv2.circle(self.frame, dot_position, 5, (0, 255, 0), -1)
 
-            # Smoothing ball positions using Gaussian filter
             if ball_position:
                 self.ball_positions.append(ball_position)
                 if len(self.ball_positions) > 10:  
@@ -322,7 +315,6 @@ class Shot:
         """Calculate the average color in the ROI."""
         if roi is None or roi.size == 0:
             return None
-        # Calculate the mean color in the BGR space
         average_color = np.mean(roi, axis=(0, 1)).astype(int)
         return average_color
 
@@ -367,40 +359,52 @@ class CourtVisionApp:
     def __init__(self, root):
         self.root = root
         self.root.title("CourtVision")
-        self.root.geometry("400x400")  # Adjusted for the logo height
+        self.root.configure(bg='#2F323C')  
+        self.root.update_idletasks()
+        width = 400
+        height = 600
+        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.root.winfo_screenheight() // 2) - (height // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-        # Load the custom font
-        self.custom_font = tkFont.Font(file="Bombing.ttf", size=12)
+        self.card_frame = tk.Frame(self.root, bg='#2F323C')  # Light gray background
+        self.card_frame.place(relx=0.5, rely=0.5, anchor='center', width=350, height=450)
 
-        # Load and display the logo
-        self.logo_image = tk.PhotoImage(file="logo.png")
-        self.logo_label = tk.Label(root, image=self.logo_image)
-        self.logo_label.pack(pady=10)
+        self.title_frame = tk.Frame(self.card_frame, bg='#f2f2f2')
+        self.title_frame.pack(pady=20)
 
-        # Available colors
-        self.available_colors = ['Purple', 'Red', 'Yellow', 'Green', 'Blue', 'Orange', 'Black', 'White']
+        self.title_label1 = tk.Label(self.title_frame, text="Court", font=("Helvetica", 36, "bold"), fg='#FF9800', bg='#2F323C')
+        self.title_label1.pack(side='left')
 
-        # Team 1 selection
-        self.team1_label = tk.Label(root, text="Select Team 1 Color:", font=self.custom_font)
-        self.team1_label.pack(pady=5)
+        self.title_label2 = tk.Label(self.title_frame, text="Vision", font=("Helvetica", 36, "bold"), fg='white', bg='#2F323C')
+        self.title_label2.pack(side='left')
+
+        self.available_colors = ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'White', 'Black']
+
+        self.team1_label = tk.Label(self.card_frame, text="Team 1 Color", font=("Helvetica", 12), fg='#E5E7EB', bg='#2F323C')
+        self.team1_label.pack(pady=(10, 5), anchor='w', padx=40)
         self.team1_color = tk.StringVar()
         self.team1_color.set(self.available_colors[0])  # Default selection
-        self.team1_dropdown = ttk.Combobox(root, textvariable=self.team1_color, values=self.available_colors, state="readonly")
-        self.team1_dropdown.pack(pady=5)
+        self.team1_dropdown = ttk.Combobox(self.card_frame, textvariable=self.team1_color, values=self.available_colors, state="readonly")
+        self.team1_dropdown.pack(pady=5, padx=40, fill='x')
 
-        # Team 2 selection
-        self.team2_label = tk.Label(root, text="Select Team 2 Color:", font=self.custom_font)
-        self.team2_label.pack(pady=5)
+        self.team2_label = tk.Label(self.card_frame, text="Team 2 Color", font=("Helvetica", 12), fg='#E5E7EB', bg='#2F323C')
+        self.team2_label.pack(pady=(10, 5), anchor='w', padx=40)
         self.team2_color = tk.StringVar()
         self.team2_color.set(self.available_colors[1])  # Default selection
-        self.team2_dropdown = ttk.Combobox(root, textvariable=self.team2_color, values=self.available_colors, state="readonly")
-        self.team2_dropdown.pack(pady=5)
+        self.team2_dropdown = ttk.Combobox(self.card_frame, textvariable=self.team2_color, values=self.available_colors, state="readonly")
+        self.team2_dropdown.pack(pady=5, padx=40, fill='x')
 
-        self.start_button = tk.Button(root, text="Start", command=self.start, font=self.custom_font)
-        self.start_button.pack(pady=20)
+        self.start_button = tk.Button(self.card_frame, text="Start Counting", command=self.start, font=("Helvetica", 14), bg='#FF9800', fg='white', activebackground='#E65100', activeforeground='white')
+        self.start_button.pack(pady=(30, 10), padx=40, fill='x')
 
-        self.exit_button = tk.Button(root, text="Exit", command=self.exit, font=self.custom_font)
-        self.exit_button.pack(pady=20)
+        self.exit_button = tk.Button(self.card_frame, text="Exit", command=self.exit, font=("Helvetica", 14), bg='#1F2937', fg='#FF9800', activebackground='#FF9800', activeforeground='white', highlightthickness=1, highlightbackground='#FF9800')
+        self.exit_button.pack(pady=(0, 10), padx=40, fill='x')
+
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure('TCombobox', fieldbackground='#374151', background='#374151', foreground='white')
+        style.map('TCombobox', fieldbackground=[('readonly', '#374151')])
 
     def start(self):
         team1 = self.team1_color.get()
@@ -410,7 +414,7 @@ class CourtVisionApp:
             messagebox.showerror("Error", "Team colors must be different.")
             return
 
-        self.shot = Shot(team1, team2, self.custom_font)
+        self.shot = Shot(team1, team2)
         threading.Thread(target=self.shot.start_video_processing).start()
 
     def exit(self):
@@ -418,7 +422,7 @@ class CourtVisionApp:
             self.shot.stop_video_processing()
         self.root.quit()
         self.root.destroy()
-        
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = CourtVisionApp(root)
